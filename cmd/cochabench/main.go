@@ -9,7 +9,7 @@ import (
 
 	"github.com/urfave/cli/v3"
 
-	"github.com/EinfachNiklas/CodingChallengesBenchmark/internal/eval"
+	"github.com/EinfachNiklas/cochabench/internal/eval"
 )
 
 func validatePath(path string) error {
