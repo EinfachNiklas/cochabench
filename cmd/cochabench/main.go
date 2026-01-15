@@ -2,15 +2,45 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/urfave/cli/v3"
+
+	"github.com/EinfachNiklas/CodingChallengesBenchmark/internal/eval"
 )
 
+func validatePath(path string) error {
+	stat, err := os.Stat(path)
+	if len(path) == 0 {
+		return errors.New("No path provided")
+	}
+	if err != nil {
+		return errors.New("This directory does not exist")
+	}
+	if !stat.IsDir() {
+		return errors.New("The provided path is not a directory")
+	}
+	return nil
+}
+
 func evaluate(ctx context.Context, cmd *cli.Command) error {
-	fmt.Println("Hello World")
+	err := validatePath(cmd.String("path"))
+	if err != nil {
+		return err
+	}
+	err = eval.ValidateDirStructure(cmd.String("path"))
+	if err != nil {
+		return err
+	}
+	challengeConfig, err := eval.LoadChallengeConfig(filepath.Join(cmd.String("path"), "config.json"))
+	if err != nil {
+		return err
+	}
+	log.Println(challengeConfig.Name)
+
 	return nil
 }
 
@@ -24,6 +54,13 @@ func main() {
 				Aliases: []string{"e"},
 				Usage:   "Evaluate Coding Challenge",
 				Action:  evaluate,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "path",
+						Aliases: []string{"p"},
+						Usage:   "Path to directory of challenge",
+					},
+				},
 			},
 		},
 	}
