@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"time"
 )
 
 type ChallengeConfig struct {
@@ -14,17 +13,8 @@ type ChallengeConfig struct {
 	ChallengeType string
 }
 
-type CochabenchData struct {
-	RunName   string
-	StartTime time.Time
-	EndTime   time.Time
-}
-
 func ValidateDirPath(path string) error {
 	stat, err := os.Stat(path)
-	if len(path) == 0 {
-		return errors.New("No path provided")
-	}
 	if err != nil {
 		return errors.New("This directory does not exist")
 	}
@@ -57,29 +47,4 @@ func LoadChallengeConfig(path string) (*ChallengeConfig, error) {
 		return nil, errors.New("Malfomed configuration in " + path)
 	}
 	return &config, nil
-}
-
-func LoadCochabenchData(path string) (*CochabenchData, error) {
-	var cochabencData CochabenchData
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(data, &cochabencData)
-	if err != nil {
-		return nil, errors.New("Malformed cochabench.json file in " + path)
-	}
-	return &cochabencData, nil
-}
-
-func WriteCochabenchData(data *CochabenchData, path string) error {
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
-	err = os.WriteFile("cochabench.json", jsonData, 0666)
-	if err != nil {
-		return err
-	}
-	return nil
 }

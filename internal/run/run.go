@@ -1,135 +1,141 @@
-package timer
+package run
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/urfave/cli/v3"
 
+	cochabenchdata "github.com/EinfachNiklas/cochabench/internal/cochabenchData"
 	"github.com/EinfachNiklas/cochabench/internal/tools"
 )
 
-func Start(ctx context.Context, cmd *cli.Command) error {
-	dirPath := cmd.Args().Get(0)
+func loadEntry(dirPath string, id string) (*cochabenchdata.CochabenchEntry, error) {
+
+	if len(id) == 0 {
+		return nil, errors.New("No ID provided")
+	}
+
 	err := tools.ValidateDirPath(dirPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	err = tools.ValidateDirStructure(dirPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	var cochabenchData *tools.CochabenchData
-	dataPath := filepath.Join(dirPath, "cochabench.json")
-	_, err = os.Stat(dataPath)
-	if os.IsNotExist(err) {
-		cochabenchData = &tools.CochabenchData{
-			RunName:   uuid.NewString(),
-			StartTime: time.Now(),
-		}
-	} else {
-		cochabenchData, err = tools.LoadCochabenchData(dataPath)
-		if err != nil {
-			return err
-		}
-		if len(cochabenchData.RunName) == 0 {
-			cochabenchData = &tools.CochabenchData{
-				RunName: uuid.NewString(),
-			}
-		}
-		if cochabenchData.StartTime.IsZero() {
-			cochabenchData.StartTime = time.Now()
-		} else {
-			return errors.New("Run " + cochabenchData.RunName + " is already running")
-		}
+	store, err := cochabenchdata.LoadCochabenchStore(dirPath)
+	if err != nil {
+		return nil, err
+	}
+	entry, ok := (*store)[id]
+	if !ok {
+		return nil, errors.New("RunID not found")
+	}
+	return &entry, nil
+}
+
+func Init(ctx context.Context, cmd *cli.Command) error {
+	dirPath := cmd.Args().Get(0)
+	name := cmd.String("name")
+	id := uuid.NewString()
+	entry := cochabenchdata.CochabenchEntry{
+		RunName:   name,
+		RunID:     id,
+		RunStatus: "I",
 	}
 
-	err = tools.WriteCochabenchData(cochabenchData, dataPath)
+	err := entry.Write(dirPath)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Successfully started run %s\n", cochabenchData.RunName)
+	fmt.Printf("Initialized run %s[%s] successfully\n", entry.RunName, entry.RunID)
+	return nil
+}
+
+func Start(ctx context.Context, cmd *cli.Command) error {
+	dirPath := cmd.Args().Get(0)
+	if len(dirPath) == 0 {
+		dirPath = "./"
+	}
+	id := cmd.String("id")
+	entry, err := loadEntry(dirPath, id)
+	if err != nil {
+		return err
+	}
+	switch entry.RunStatus {
+	case "R":
+		return errors.New("Run " + entry.RunName + "[" + id + "] is already running\n")
+	case "F":
+		return errors.New("Run " + entry.RunName + "[" + id + "] is already finnished\n")
+	case "I", "C":
+		entry.StartTime = time.Now()
+		entry.RunStatus = "R"
+	}
+
+	err = entry.Write(dirPath)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Run %s[%s] started successfully\n", entry.RunName, entry.RunID)
 	return nil
 }
 
 func Stop(ctx context.Context, cmd *cli.Command) error {
 	dirPath := cmd.Args().Get(0)
-	err := tools.ValidateDirPath(dirPath)
+	if len(dirPath) == 0 {
+		dirPath = "./"
+	}
+	id := cmd.String("id")
+	entry, err := loadEntry(dirPath, id)
 	if err != nil {
 		return err
 	}
-	err = tools.ValidateDirStructure(dirPath)
-	if err != nil {
-		return err
+	switch entry.RunStatus {
+	case "R":
+		entry.EndTime = time.Now()
+		entry.RunStatus = "F"
+	case "F":
+		return errors.New("Run " + entry.RunName + "[" + id + "] is already finnished\n")
+	case "I", "C":
+		return errors.New("Run " + entry.RunName + "[" + id + "] is not running\n")
 	}
 
-	var cochabenchData *tools.CochabenchData
-	dataPath := filepath.Join(dirPath, "cochabench.json")
-	_, err = os.Stat(dataPath)
-	if os.IsNotExist(err) {
-		return errors.New("There is no run to stop")
-	} else {
-		cochabenchData, err = tools.LoadCochabenchData(dataPath)
-		if err != nil {
-			return err
-		}
-		if cochabenchData.StartTime.IsZero() {
-			return errors.New("There is no run to stop")
-		} else if !cochabenchData.EndTime.IsZero() {
-			return errors.New("Run " + cochabenchData.RunName + " is already finished")
-		} else {
-			cochabenchData.EndTime = time.Now()
-		}
-	}
-
-	err = tools.WriteCochabenchData(cochabenchData, dataPath)
+	err = entry.Write(dirPath)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Successfully stopped run %s\n", cochabenchData.RunName)
+	fmt.Printf("Run %s[%s] stopped successfully\n", entry.RunName, entry.RunID)
 	return nil
 }
 
 func Cancel(ctx context.Context, cmd *cli.Command) error {
 	dirPath := cmd.Args().Get(0)
-
-	err := tools.ValidateDirPath(dirPath)
+	if len(dirPath) == 0 {
+		dirPath = "./"
+	}
+	id := cmd.String("id")
+	entry, err := loadEntry(dirPath, id)
 	if err != nil {
 		return err
 	}
-	err = tools.ValidateDirStructure(dirPath)
+	switch entry.RunStatus {
+	case "R":
+		entry.RunStatus = "C"
+	case "F":
+		return errors.New("Run " + entry.RunName + "[" + id + "] is already finnished\n")
+	case "I", "C":
+		return errors.New("Run " + entry.RunName + "[" + id + "] is not running\n")
+	}
+
+	err = entry.Write(dirPath)
 	if err != nil {
 		return err
 	}
-
-	var cochabenchData *tools.CochabenchData
-	dataPath := filepath.Join(dirPath, "cochabench.json")
-	_, err = os.Stat(dataPath)
-	if os.IsNotExist(err) {
-		return errors.New("There is no run to cancel")
-	}
-
-	cochabenchData, err = tools.LoadCochabenchData(dataPath)
-	if err != nil {
-		return err
-	}
-	if cochabenchData.StartTime.IsZero() {
-		return errors.New("There is no run to cancel")
-	} else if !cochabenchData.EndTime.IsZero() {
-		return errors.New("Run " + cochabenchData.RunName + " is already finished")
-	} else {
-		err = tools.WriteCochabenchData(&tools.CochabenchData{}, dataPath)
-	}
-
-	if err != nil {
-		return err
-	}
-	fmt.Printf("Successfully canceled run %s \n", cochabenchData.RunName)
+	fmt.Printf("Run %s[%s] was canceled successfully\n", entry.RunName, entry.RunID)
 	return nil
 }
