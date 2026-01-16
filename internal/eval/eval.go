@@ -1,43 +1,29 @@
 package eval
 
 import (
-	"encoding/json"
-	"errors"
-	"os"
+	"context"
+	"log"
 	"path/filepath"
+
+	"github.com/urfave/cli/v3"
+
+	"github.com/EinfachNiklas/cochabench/internal/tools"
 )
 
-type ChallengeConfig struct {
-	Name          string
-	ChallengeID   string
-	ChallengeType string
-}
-
-func Evaluate() bool {
-	return true
-}
-
-func ValidateDirStructure(path string) error {
-	stat, err := os.Stat(filepath.Join(path, "solution"))
-	if err != nil || !stat.IsDir() {
-		return errors.New("Missing Directory 'solution' in provided path: " + path)
-	}
-	stat, err = os.Stat(filepath.Join(path, "config.json"))
+func Evaluate(ctx context.Context, cmd *cli.Command) error {
+	err := tools.ValidateDirPath(cmd.String("path"))
 	if err != nil {
-		return errors.New("Missing Config File 'config.json' in provided path: " + path)
+		return err
 	}
+	err = tools.ValidateDirStructure(cmd.String("path"))
+	if err != nil {
+		return err
+	}
+	challengeConfig, err := tools.LoadChallengeConfig(filepath.Join(cmd.String("path"), "config.json"))
+	if err != nil {
+		return err
+	}
+	log.Println(challengeConfig.Name)
+
 	return nil
-}
-
-func LoadChallengeConfig(path string) (*ChallengeConfig, error) {
-	var config ChallengeConfig
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(data, &config)
-	if err != nil {
-		return nil, errors.New("Malfomed configuration in " + path)
-	}
-	return &config, nil
 }

@@ -2,47 +2,14 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log"
 	"os"
-	"path/filepath"
-
-	"github.com/urfave/cli/v3"
 
 	"github.com/EinfachNiklas/cochabench/internal/eval"
+	timer "github.com/EinfachNiklas/cochabench/internal/run"
+
+	"github.com/urfave/cli/v3"
 )
-
-func validatePath(path string) error {
-	stat, err := os.Stat(path)
-	if len(path) == 0 {
-		return errors.New("No path provided")
-	}
-	if err != nil {
-		return errors.New("This directory does not exist")
-	}
-	if !stat.IsDir() {
-		return errors.New("The provided path is not a directory")
-	}
-	return nil
-}
-
-func evaluate(ctx context.Context, cmd *cli.Command) error {
-	err := validatePath(cmd.String("path"))
-	if err != nil {
-		return err
-	}
-	err = eval.ValidateDirStructure(cmd.String("path"))
-	if err != nil {
-		return err
-	}
-	challengeConfig, err := eval.LoadChallengeConfig(filepath.Join(cmd.String("path"), "config.json"))
-	if err != nil {
-		return err
-	}
-	log.Println(challengeConfig.Name)
-
-	return nil
-}
 
 func main() {
 	cmd := &cli.Command{
@@ -53,12 +20,34 @@ func main() {
 				Name:    "eval",
 				Aliases: []string{"e"},
 				Usage:   "Evaluate Coding Challenge",
-				Action:  evaluate,
+				Action:  eval.Evaluate,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:    "path",
 						Aliases: []string{"p"},
 						Usage:   "Path to directory of challenge",
+					},
+				},
+			},
+			{
+				Name:    "run",
+				Aliases: []string{"r"},
+				Usage:   "Handle Run Events",
+				Commands: []*cli.Command{
+					{
+						Name:   "start",
+						Usage:  "Starts Run for current challenge",
+						Action: timer.Start,
+					},
+					{
+						Name:   "stop",
+						Usage:  "Stops Run for current challenge",
+						Action: timer.Stop,
+					},
+					{
+						Name:   "cancel",
+						Usage:  "Cancels already started Run for current challenge",
+						Action: timer.Cancel,
 					},
 				},
 			},
