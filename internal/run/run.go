@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/google/uuid"
@@ -41,6 +43,17 @@ func loadEntry(dirPath string, id string) (*cochabenchdata.CochabenchEntry, erro
 
 func Init(ctx context.Context, cmd *cli.Command) error {
 	dirPath := cmd.Args().Get(0)
+	if len(dirPath) == 0 {
+		dirPath = "./"
+	}
+	err := tools.ValidateDirPath(dirPath)
+	if err != nil {
+		return err
+	}
+	err = tools.ValidateDirStructure(dirPath)
+	if err != nil {
+		return err
+	}
 	name := cmd.String("name")
 	id := uuid.NewString()
 	entry := cochabenchdata.CochabenchEntry{
@@ -49,9 +62,16 @@ func Init(ctx context.Context, cmd *cli.Command) error {
 		RunStatus: "I",
 	}
 
-	err := entry.Write(dirPath)
+	err = entry.Write(dirPath)
 	if err != nil {
 		return err
+	}
+
+	solutionPath := filepath.Join(dirPath, "solutions", entry.RunID)
+	err = os.MkdirAll(solutionPath, 0777)
+
+	if err != nil {
+		return errors.New("Could not create solution directory " + solutionPath)
 	}
 	fmt.Printf("Initialized run %s[%s] successfully\n", entry.RunName, entry.RunID)
 	return nil

@@ -84,9 +84,10 @@ func main() {
 						},
 					},
 					{
-						Name:   "list",
-						Usage:  "Lists all runs for current challenge",
-						Action: run.List,
+						Name:    "list",
+						Usage:   "Lists all runs for current challenge",
+						Aliases: []string{"l"},
+						Action:  run.List,
 					},
 				},
 			},

@@ -25,9 +25,17 @@ func ValidateDirPath(path string) error {
 }
 
 func ValidateDirStructure(path string) error {
-	stat, err := os.Stat(filepath.Join(path, "solution"))
+	stat, err := os.Stat(filepath.Join(path, "challenge"))
 	if err != nil || !stat.IsDir() {
-		return errors.New("Missing Directory 'solution' in provided path: " + path)
+		return errors.New("Missing Directory 'challenge' in provided path: " + path)
+	}
+	stat, err = os.Stat(filepath.Join(path, "challenge", "test"))
+	if os.IsNotExist(err) || !stat.IsDir() {
+		return errors.New("Missing Directory /challenge/test in provided path: " + path)
+	}
+	stat, err = os.Stat(filepath.Join(path, "challenge", "src"))
+	if os.IsNotExist(err) || !stat.IsDir() {
+		return errors.New("Missing Directory /challenge/src in provided path: " + path)
 	}
 	stat, err = os.Stat(filepath.Join(path, "config.json"))
 	if err != nil {
