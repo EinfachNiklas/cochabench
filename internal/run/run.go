@@ -139,3 +139,24 @@ func Cancel(ctx context.Context, cmd *cli.Command) error {
 	fmt.Printf("Run %s[%s] was canceled successfully\n", entry.RunName, entry.RunID)
 	return nil
 }
+
+func List(ctx context.Context, cmd *cli.Command) error {
+	dirPath := cmd.Args().Get(0)
+	if len(dirPath) == 0 {
+		dirPath = "./"
+	}
+	err := tools.ValidateDirPath(dirPath)
+	if err != nil {
+		return err
+	}
+	err = tools.ValidateDirStructure(dirPath)
+	if err != nil {
+		return err
+	}
+	store, err := cochabenchdata.LoadCochabenchStore(dirPath)
+	if err != nil {
+		return err
+	}
+	fmt.Println(store.ToString())
+	return nil
+}
