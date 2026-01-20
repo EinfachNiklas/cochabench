@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/EinfachNiklas/cochabench/internal/challenge"
 	"github.com/EinfachNiklas/cochabench/internal/eval"
 	"github.com/EinfachNiklas/cochabench/internal/run"
 	"github.com/google/uuid"
@@ -88,6 +89,24 @@ func main() {
 						Usage:   "Lists all runs for current challenge",
 						Aliases: []string{"l"},
 						Action:  run.List,
+					},
+				},
+			},
+			{
+				Name:    "challenge",
+				Usage:   "Handle challenges",
+				Aliases: []string{"c"},
+				Commands: []*cli.Command{
+					{
+						Name:    "list",
+						Usage:   "Lists all available challenges",
+						Aliases: []string{"l"},
+						Action:  challenges.List,
+					},
+					{
+						Name:   "get",
+						Usage:  "Downloads a set challenge",
+						Action: challenges.Get,
 					},
 				},
 			},
