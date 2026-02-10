@@ -73,6 +73,10 @@ func Init(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return errors.New("Could not create solution directory " + solutionPath)
 	}
+	err = os.CopyFS(solutionPath, os.DirFS(filepath.Join(dirPath, "src")))
+	if err != nil {
+		return fmt.Errorf("Could not copy source files to solutions directory: %w", err)
+	}
 	fmt.Printf("Initialized run %s[%s] successfully\n", entry.RunName, entry.RunID)
 	return nil
 }
