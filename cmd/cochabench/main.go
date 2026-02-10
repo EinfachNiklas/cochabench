@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/EinfachNiklas/cochabench/internal/challenge"
+	challenges "github.com/EinfachNiklas/cochabench/internal/challenge"
 	"github.com/EinfachNiklas/cochabench/internal/eval"
 	"github.com/EinfachNiklas/cochabench/internal/run"
 	"github.com/google/uuid"
@@ -24,6 +24,11 @@ func main() {
 				Usage:   "Evaluate Coding Challenge",
 				Action:  eval.Evaluate,
 				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "runID",
+						Aliases: []string{"i"},
+						Usage:   "RunID of Run to evaluate",
+					},
 					&cli.StringFlag{
 						Name:    "path",
 						Aliases: []string{"p"},

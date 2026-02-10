@@ -15,7 +15,7 @@ import (
 	"github.com/EinfachNiklas/cochabench/internal/tools"
 )
 
-func loadEntry(dirPath string, id string) (*cochabenchdata.CochabenchEntry, error) {
+func LoadEntry(dirPath string, id string) (*cochabenchdata.CochabenchEntry, error) {
 
 	if len(id) == 0 {
 		return nil, errors.New("No ID provided")
@@ -87,7 +87,7 @@ func Start(ctx context.Context, cmd *cli.Command) error {
 		dirPath = "./"
 	}
 	id := cmd.String("id")
-	entry, err := loadEntry(dirPath, id)
+	entry, err := LoadEntry(dirPath, id)
 	if err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func Stop(ctx context.Context, cmd *cli.Command) error {
 		dirPath = "./"
 	}
 	id := cmd.String("id")
-	entry, err := loadEntry(dirPath, id)
+	entry, err := LoadEntry(dirPath, id)
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func Cancel(ctx context.Context, cmd *cli.Command) error {
 		dirPath = "./"
 	}
 	id := cmd.String("id")
-	entry, err := loadEntry(dirPath, id)
+	entry, err := LoadEntry(dirPath, id)
 	if err != nil {
 		return err
 	}
