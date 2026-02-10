@@ -3,12 +3,12 @@ package cochabenchdata
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"time"
+
+	"github.com/EinfachNiklas/cochabench/internal/tools"
 )
 
 type CochabenchEntry struct {
@@ -71,7 +71,7 @@ func (store *Store) ToString() string {
 		return "(no entries)\n"
 	}
 
-	// Stable order
+	// Sort for stable order
 	ids := make([]string, 0, len(*store))
 	for id := range *store {
 		ids = append(ids, id)
@@ -83,62 +83,23 @@ func (store *Store) ToString() string {
 		if t.IsZero() {
 			return "-"
 		}
-		// Choose a readable, sortable format
 		return t.Local().Format("2006-01-02 15:04:05")
 	}
 
-	// Compute column widths (based on headers + values)
-	hID, hName, hRunID, hStatus, hStart, hEnd := "ID", "RunName", "RunID", "Status", "StartTime", "EndTime"
-	wID, wName, wRunID, wStatus, wStart, wEnd := len(hID), len(hName), len(hRunID), len(hStatus), len(hStart), len(hEnd)
+	// Build table using shared utility
+	tb := tools.NewTableBuilder([]string{"ID", "RunName", "RunID", "Status", "StartTime", "EndTime"})
 
 	for _, id := range ids {
 		e := (*store)[id]
-		if len(id) > wID {
-			wID = len(id)
-		}
-		if len(e.RunName) > wName {
-			wName = len(e.RunName)
-		}
-		if len(e.RunID) > wRunID {
-			wRunID = len(e.RunID)
-		}
-		if len(e.RunStatus) > wStatus {
-			wStatus = len(e.RunStatus)
-		}
-		if l := len(fmtTime(e.StartTime)); l > wStart {
-			wStart = l
-		}
-		if l := len(fmtTime(e.EndTime)); l > wEnd {
-			wEnd = l
-		}
+		tb.AddRow([]string{
+			id,
+			e.RunName,
+			e.RunID,
+			e.RunStatus,
+			fmtTime(e.StartTime),
+			fmtTime(e.EndTime),
+		})
 	}
 
-	// Build table
-	var b strings.Builder
-
-	// Header
-	fmt.Fprintf(&b, "%-*s  %-*s  %-*s  %-*s  %-*s  %-*s\n",
-		wID, hID, wName, hName, wRunID, hRunID, wStatus, hStatus, wStart, hStart, wEnd, hEnd,
-	)
-
-	// Separator
-	sep := func(n int) string { return strings.Repeat("-", n) }
-	fmt.Fprintf(&b, "%s  %s  %s  %s  %s  %s\n",
-		sep(wID), sep(wName), sep(wRunID), sep(wStatus), sep(wStart), sep(wEnd),
-	)
-
-	// Rows
-	for _, id := range ids {
-		e := (*store)[id]
-		fmt.Fprintf(&b, "%-*s  %-*s  %-*s  %-*s  %-*s  %-*s\n",
-			wID, id,
-			wName, e.RunName,
-			wRunID, e.RunID,
-			wStatus, e.RunStatus,
-			wStart, fmtTime(e.StartTime),
-			wEnd, fmtTime(e.EndTime),
-		)
-	}
-
-	return b.String()
+	return tb.Build()
 }
