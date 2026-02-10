@@ -19,7 +19,7 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	challengeConfig, err := tools.LoadChallengeConfig(filepath.Join(cmd.String("path"), "config.json"))
+	challengeConfig, err := tools.LoadChallengeConfig(filepath.Join(cmd.String("path"), "challenge.config.json"))
 	if err != nil {
 		return err
 	}

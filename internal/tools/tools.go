@@ -104,13 +104,25 @@ func ValidateDirPath(path string) error {
 }
 
 func ValidateDirStructure(path string) error {
+	// Check for src directory
 	stat, err := os.Stat(filepath.Join(path, "src"))
 	if err != nil || !stat.IsDir() {
 		return errors.New("Missing Directory 'src' in provided path: " + path)
 	}
+
+	// Check for test directory
 	stat, err = os.Stat(filepath.Join(path, "test"))
 	if os.IsNotExist(err) || !stat.IsDir() {
 		return errors.New("Missing Directory 'test' in provided path: " + path)
+	}
+
+	// Check for config.json file
+	stat, err = os.Stat(filepath.Join(path, "challenge.config.json"))
+	if os.IsNotExist(err) {
+		return errors.New("Missing challenge.config.json file in provided path: " + path)
+	}
+	if err != nil {
+		return errors.New("Error accessing challenge.config.json in provided path: " + path)
 	}
 	return nil
 }
