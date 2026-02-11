@@ -1,0 +1,183 @@
+package eval
+
+import (
+	"bufio"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
+)
+
+type GoHandler struct{}
+
+func (h GoHandler) ExecuteTests(tempDir string) (*TestResult, error) {
+	startTime := time.Now()
+
+	// Download dependencies
+	fmt.Println("Downloading Go dependencies...")
+	downloadCmd := exec.Command("go", "mod", "download")
+	downloadCmd.Dir = tempDir
+	if output, err := downloadCmd.CombinedOutput(); err != nil {
+		fmt.Printf("Warning: go mod download failed: %s\n", output)
+	}
+
+	fmt.Println("Running go mod tidy...")
+	tidyCmd := exec.Command("go", "mod", "tidy")
+	tidyCmd.Dir = tempDir
+	if output, err := tidyCmd.CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("failed to run go mod tidy: %s", output)
+	}
+
+	fmt.Println("Executing Go Tests...")
+
+	cmd := exec.Command("go", "test", "-json", "./...")
+	cmd.Dir = tempDir
+
+	output, err := cmd.CombinedOutput()
+	duration := time.Since(startTime)
+
+	result := &TestResult{
+		Duration: duration,
+	}
+
+	if parseErr := h.parseGoTestJSON(output, result); parseErr != nil {
+		return nil, fmt.Errorf("failed to parse test output: %w\n\n%s", parseErr, output)
+	}
+
+	if err != nil {
+		result.Passed = false
+	} else {
+		result.Passed = result.FailedTests == 0
+	}
+
+	return result, nil
+}
+
+func (h GoHandler) parseGoTestJSON(data []byte, result *TestResult) error {
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+
+	testResults := make(map[string]string)
+	testOutputs := make(map[string]string)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		var event struct {
+			Action  string  `json:"Action"`
+			Test    string  `json:"Test"`
+			Output  string  `json:"Output"`
+			Elapsed float64 `json:"Elapsed"`
+		}
+
+		if err := json.Unmarshal([]byte(line), &event); err != nil {
+			continue
+		}
+
+		switch event.Action {
+		case "pass":
+			testResults[event.Test] = "pass"
+		case "fail":
+			testResults[event.Test] = "fail"
+			if event.Output != "" {
+				testOutputs[event.Test] += event.Output
+			}
+		case "skip":
+			testResults[event.Test] = "skip"
+		case "output":
+
+			if event.Test != "" {
+				testOutputs[event.Test] += event.Output
+			}
+		}
+	}
+
+	for testName, outcome := range testResults {
+		switch outcome {
+		case "pass":
+			result.PassedTests++
+		case "fail":
+			result.FailedTests++
+
+			message := strings.TrimSpace(testOutputs[testName])
+			result.Errors = append(result.Errors, TestError{
+				TestName: testName,
+				Message:  message,
+				Stack:    "",
+			})
+		case "skip":
+			result.SkippedTests++
+		}
+	}
+
+	result.TotalTests = result.PassedTests + result.FailedTests + result.SkippedTests
+
+	return nil
+}
+
+func (h GoHandler) PrepareEnvironment(challengePath string, runID string) (tempDir string, cleanup func(), err error) {
+	tempDir, err = os.MkdirTemp("", fmt.Sprintf("cochabench-%s-*", runID))
+	if err != nil {
+		return "", nil, fmt.Errorf("Failed to create temp directory: %w", err)
+	}
+
+	cleanup = func() {
+		os.RemoveAll(tempDir)
+	}
+
+	// Copy Files
+	solutionSrc := filepath.Join(challengePath, "solutions", runID)
+	srcDst := filepath.Join(tempDir, "src")
+	if err := os.CopyFS(srcDst, os.DirFS(solutionSrc)); err != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("Failed to copy solution files: %w", err)
+	}
+
+	testSrc := filepath.Join(challengePath, "test")
+	testFiles, err := os.ReadDir(testSrc)
+	if err != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("Failed to read test directory: %w", err)
+	}
+
+	for _, file := range testFiles {
+		if !file.IsDir() {
+			srcPath := filepath.Join(testSrc, file.Name())
+			dstPath := filepath.Join(srcDst, file.Name())
+			data, readErr := os.ReadFile(srcPath)
+			if readErr != nil {
+				cleanup()
+				return "", nil, fmt.Errorf("Failed to read test file %s: %w", file.Name(), readErr)
+			}
+			if writeErr := os.WriteFile(dstPath, data, 0644); writeErr != nil {
+				cleanup()
+				return "", nil, fmt.Errorf("Failed to write test file %s: %w", file.Name(), writeErr)
+			}
+		}
+	}
+
+	goModSrc := filepath.Join(challengePath, "go.mod")
+	goModDst := filepath.Join(tempDir, "go.mod")
+	if _, statErr := os.Stat(goModSrc); statErr == nil {
+		data, readErr := os.ReadFile(goModSrc)
+		if readErr == nil {
+			err = os.WriteFile(goModDst, data, 0644)
+			if err != nil {
+				return "", cleanup, fmt.Errorf("Failed to copy go.mod: %w", err)
+			}
+		}
+	}
+
+	goSumSrc := filepath.Join(challengePath, "go.sum")
+	goSumDst := filepath.Join(tempDir, "go.sum")
+	if _, statErr := os.Stat(goSumSrc); statErr == nil {
+		data, readErr := os.ReadFile(goSumSrc)
+		if readErr == nil {
+			os.WriteFile(goSumDst, data, 0644)
+		}
+	}
+
+	return tempDir, cleanup, nil
+}
