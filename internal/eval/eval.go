@@ -42,23 +42,49 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("Run is not finished. Nothing to evaluate")
 	}
 
-	var h LanguageHandler
-	var tempDir string
-	var cleanup func()
-	if challengeConfig.ChallengeType == "javascript" {
-		h = JavascriptHandler{}
-		tempDir, cleanup, err = h.PrepareEnvironment(dirPath, runID)
+	handler, err := createHandler(challengeConfig.ChallengeType)
+	if err != nil {
+		return err
 	}
-	defer cleanup()
+
+	tempDir, cleanup, err := handler.PrepareEnvironment(dirPath, runID)
 	if err != nil {
 		return fmt.Errorf("Failed to prepare temporary environment for evaluation: %w", err)
 	}
-	result, err := h.ExecuteTests(tempDir)
+	defer cleanup()
+
+	testResult, err := executeTests(handler, tempDir)
 	if err != nil {
-		return fmt.Errorf("Failed to execute tests: %w", err)
+		return err
 	}
 
-	fmt.Println(result)
+	runData.TestDuration = testResult.Duration
+	runData.PassedTests = testResult.Passed
+	runData.NumTotalTests = testResult.TotalTests
+	runData.NumPassedTests = testResult.PassedTests
+	runData.NumFailedTests = testResult.FailedTests
+	runData.NumSkippedTests = testResult.SkippedTests
+
+	fmt.Println(runData)
+
+	runData.Write(dirPath)
 
 	return nil
+}
+
+func createHandler(challengeType string) (LanguageHandler, error) {
+	switch challengeType {
+	case "javascript":
+		return JavascriptHandler{}, nil
+	default:
+		return nil, fmt.Errorf("unsupported challenge type: %s", challengeType)
+	}
+}
+
+func executeTests(handler LanguageHandler, tempDir string) (*TestResult, error) {
+	result, err := handler.ExecuteTests(tempDir)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to execute tests: %w", err)
+	}
+	return result, nil
 }
