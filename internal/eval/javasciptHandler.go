@@ -2,6 +2,7 @@ package eval
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -12,21 +13,30 @@ import (
 
 type JavascriptHandler struct{}
 
-func (h JavascriptHandler) ExecuteTests(tempDir string) (*TestResult, error) {
+func (h JavascriptHandler) ExecuteTests(ctx context.Context, tempDir string) (*TestResult, error) {
 	startTime := time.Now()
+
 	fmt.Println("Installing Packages...")
-	cmd := exec.Command("npm", "install")
+	cmd := exec.CommandContext(ctx, "npm", "install")
 	cmd.Dir = tempDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return nil, fmt.Errorf("npm install timed out")
+		}
 		return nil, fmt.Errorf("Error when installing Node Modules: %s", output)
 	}
+
 	fmt.Println("Executing Tests...")
-	cmd = exec.Command("npm", "test", "--", "--json", "--silent", "--noStackTrace")
+	cmd = exec.CommandContext(ctx, "npm", "test", "--", "--json", "--silent", "--noStackTrace")
 	cmd.Dir = tempDir
 
 	output, err = cmd.CombinedOutput()
 	duration := time.Since(startTime)
+
+	if ctx.Err() == context.DeadlineExceeded {
+		return nil, fmt.Errorf("Test execution timed out")
+	}
 
 	result := &TestResult{
 		Duration: duration,

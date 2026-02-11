@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"time"
 
 	"github.com/urfave/cli/v3"
 
 	"github.com/EinfachNiklas/cochabench/internal/run"
 	"github.com/EinfachNiklas/cochabench/internal/tools"
 )
+
+const TIMEOUT_DURATION = 5 * time.Minute
 
 func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	runID := cmd.String("runID")
@@ -86,9 +89,27 @@ func createHandler(challengeType string) (LanguageHandler, error) {
 }
 
 func executeTests(handler LanguageHandler, tempDir string) (*TestResult, error) {
-	result, err := handler.ExecuteTests(tempDir)
-	if err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), TIMEOUT_DURATION)
+	defer cancel()
+
+	resultChan := make(chan *TestResult)
+	errorChan := make(chan error)
+
+	go func() {
+		result, err := handler.ExecuteTests(ctx, tempDir)
+		if err != nil {
+			errorChan <- err
+			return
+		}
+		resultChan <- result
+	}()
+
+	select {
+	case result := <-resultChan:
+		return result, nil
+	case err := <-errorChan:
 		return nil, fmt.Errorf("Failed to execute tests: %w", err)
+	case <-ctx.Done():
+		return nil, fmt.Errorf("Test execution timed out after 5 minutes")
 	}
-	return result, nil
 }

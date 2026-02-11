@@ -1,6 +1,7 @@
 package eval
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -11,7 +12,7 @@ import (
 
 type PythonHandler struct{}
 
-func (h PythonHandler) ExecuteTests(tempDir string) (*TestResult, error) {
+func (h PythonHandler) ExecuteTests(ctx context.Context, tempDir string) (*TestResult, error) {
 	startTime := time.Now()
 
 	// Determine python command (try python3 first, fallback to python)
@@ -23,10 +24,13 @@ func (h PythonHandler) ExecuteTests(tempDir string) (*TestResult, error) {
 	// Create virtual environment
 	fmt.Println("Creating virtual environment...")
 	venvPath := filepath.Join(tempDir, "venv")
-	cmd := exec.Command(pythonCmd, "-m", "venv", venvPath)
+	cmd := exec.CommandContext(ctx, pythonCmd, "-m", "venv", venvPath)
 	cmd.Dir = tempDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return nil, fmt.Errorf("Creating virtual environment timed out")
+		}
 		return nil, fmt.Errorf("Error creating virtual environment: %s", output)
 	}
 
@@ -42,31 +46,41 @@ func (h PythonHandler) ExecuteTests(tempDir string) (*TestResult, error) {
 	}
 
 	fmt.Println("Installing pytest...")
-	cmd = exec.Command(pipPath, "install", "pytest", "pytest-json-report", "--quiet")
+	cmd = exec.CommandContext(ctx, pipPath, "install", "pytest", "pytest-json-report", "--quiet")
 	cmd.Dir = tempDir
 	output, err = cmd.CombinedOutput()
 	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return nil, fmt.Errorf("Installing pytest timed out")
+		}
 		return nil, fmt.Errorf("Error installing pytest: %s", output)
 	}
 
 	requirementsPath := filepath.Join(tempDir, "requirements.txt")
 	if _, err := os.Stat(requirementsPath); err == nil {
 		fmt.Println("Installing Python packages...")
-		cmd = exec.Command(pipPath, "install", "-r", "requirements.txt", "--quiet")
+		cmd = exec.CommandContext(ctx, pipPath, "install", "-r", "requirements.txt", "--quiet")
 		cmd.Dir = tempDir
 		output, err = cmd.CombinedOutput()
 		if err != nil {
+			if ctx.Err() == context.DeadlineExceeded {
+				return nil, fmt.Errorf("Installing packages timed out")
+			}
 			return nil, fmt.Errorf("Error when installing Python packages: %s", output)
 		}
 	}
 
 	fmt.Println("Executing Tests...")
-	cmd = exec.Command(pythonPath, "-m", "pytest", "test", "--json-report", "--json-report-file=report.json", "-v")
+	cmd = exec.CommandContext(ctx, pythonPath, "-m", "pytest", "test", "--json-report", "--json-report-file=report.json", "-v")
 	cmd.Dir = tempDir
 	cmd.Env = append(os.Environ(), "PYTHONPATH="+tempDir)
 
 	output, err = cmd.CombinedOutput()
 	duration := time.Since(startTime)
+
+	if ctx.Err() == context.DeadlineExceeded {
+		return nil, fmt.Errorf("Test execution timed out")
+	}
 
 	result := &TestResult{
 		Duration: duration,

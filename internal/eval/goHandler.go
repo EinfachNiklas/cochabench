@@ -3,6 +3,7 @@ package eval
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,31 +15,38 @@ import (
 
 type GoHandler struct{}
 
-func (h GoHandler) ExecuteTests(tempDir string) (*TestResult, error) {
+func (h GoHandler) ExecuteTests(ctx context.Context, tempDir string) (*TestResult, error) {
 	startTime := time.Now()
 
 	// Download dependencies
 	fmt.Println("Downloading Go dependencies...")
-	downloadCmd := exec.Command("go", "mod", "download")
+	downloadCmd := exec.CommandContext(ctx, "go", "mod", "download")
 	downloadCmd.Dir = tempDir
 	if output, err := downloadCmd.CombinedOutput(); err != nil {
 		fmt.Printf("Warning: go mod download failed: %s\n", output)
 	}
 
 	fmt.Println("Running go mod tidy...")
-	tidyCmd := exec.Command("go", "mod", "tidy")
+	tidyCmd := exec.CommandContext(ctx, "go", "mod", "tidy")
 	tidyCmd.Dir = tempDir
 	if output, err := tidyCmd.CombinedOutput(); err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return nil, fmt.Errorf("go mod tidy timed out")
+		}
 		return nil, fmt.Errorf("failed to run go mod tidy: %s", output)
 	}
 
 	fmt.Println("Executing Go Tests...")
 
-	cmd := exec.Command("go", "test", "-json", "./...")
+	cmd := exec.CommandContext(ctx, "go", "test", "-json", "./...")
 	cmd.Dir = tempDir
 
 	output, err := cmd.CombinedOutput()
 	duration := time.Since(startTime)
+
+	if ctx.Err() == context.DeadlineExceeded {
+		return nil, fmt.Errorf("Test execution timed out")
+	}
 
 	result := &TestResult{
 		Duration: duration,
