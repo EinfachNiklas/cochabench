@@ -74,8 +74,12 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 
 func createHandler(challengeType string) (LanguageHandler, error) {
 	switch challengeType {
-	case "javascript":
+	case "javascript", "js":
 		return JavascriptHandler{}, nil
+	case "python", "py":
+		return PythonHandler{}, nil
+	case "go", "golang":
+		return GoHandler{}, nil
 	default:
 		return nil, fmt.Errorf("unsupported challenge type: %s", challengeType)
 	}
