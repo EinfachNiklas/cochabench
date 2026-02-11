@@ -56,13 +56,14 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	}
 	defer cleanup()
 
-	testResult, err := executeTests(handler, tempDir)
+	testResult, err, timedOut := executeTests(handler, tempDir)
 	if err != nil {
 		return err
 	}
 
 	runData.TestDuration = testResult.Duration
 	runData.PassedTests = testResult.Passed
+	runData.TimedOut = timedOut
 	runData.NumTotalTests = testResult.TotalTests
 	runData.NumPassedTests = testResult.PassedTests
 	runData.NumFailedTests = testResult.FailedTests
@@ -88,7 +89,7 @@ func createHandler(challengeType string) (LanguageHandler, error) {
 	}
 }
 
-func executeTests(handler LanguageHandler, tempDir string) (*TestResult, error) {
+func executeTests(handler LanguageHandler, tempDir string) (result *TestResult, err error, timedOut bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), TIMEOUT_DURATION)
 	defer cancel()
 
@@ -105,11 +106,11 @@ func executeTests(handler LanguageHandler, tempDir string) (*TestResult, error) 
 	}()
 
 	select {
-	case result := <-resultChan:
-		return result, nil
-	case err := <-errorChan:
-		return nil, fmt.Errorf("Failed to execute tests: %w", err)
+	case result = <-resultChan:
+		return result, nil, false
+	case err = <-errorChan:
+		return nil, fmt.Errorf("Failed to execute tests: %w", err), false
 	case <-ctx.Done():
-		return nil, fmt.Errorf("Test execution timed out after 5 minutes")
+		return nil, fmt.Errorf("Test execution timed out"), true
 	}
 }

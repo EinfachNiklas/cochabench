@@ -19,6 +19,7 @@ type CochabenchEntry struct {
 	EndTime         time.Time
 	TestDuration    time.Duration
 	PassedTests     bool
+	TimedOut        bool
 	NumTotalTests   int
 	NumPassedTests  int
 	NumFailedTests  int
