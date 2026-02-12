@@ -58,7 +58,7 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 
 	testResult, err, timedOut := executeTests(handler, tempDir)
 	if err != nil {
-		return err
+		fmt.Printf("Failed to execute tests: %w", err)
 	}
 
 	runData.TestDuration = testResult.Duration
