@@ -142,6 +142,21 @@ func (h GoHandler) PrepareEnvironment(challengePath string, runID string) (tempD
 		cleanup()
 		return "", nil, fmt.Errorf("Failed to copy solution files: %w", err)
 	}
+	goModData, err := os.ReadFile(filepath.Join(srcDst, "go.mod"))
+	if err != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("Failed to copy go.mod from src/: %v", err)
+	}
+	err = os.WriteFile(filepath.Join(srcDst, "..", "go.mod"), goModData, 0644)
+	if err != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("Failed to copy go.mod: %v", err)
+	}
+
+	if removeErr := os.Remove(filepath.Join(srcDst, "go.mod")); removeErr != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("Failed to remove src/go.mod: %w", removeErr)
+	}
 
 	testSrc := filepath.Join(challengePath, "test")
 	testFiles, err := os.ReadDir(testSrc)
@@ -153,7 +168,8 @@ func (h GoHandler) PrepareEnvironment(challengePath string, runID string) (tempD
 	for _, file := range testFiles {
 		if !file.IsDir() {
 			srcPath := filepath.Join(testSrc, file.Name())
-			dstPath := filepath.Join(srcDst, file.Name())
+			var dstPath string
+			dstPath = filepath.Join(srcDst, file.Name())
 			data, readErr := os.ReadFile(srcPath)
 			if readErr != nil {
 				cleanup()
@@ -166,24 +182,22 @@ func (h GoHandler) PrepareEnvironment(challengePath string, runID string) (tempD
 		}
 	}
 
-	goModSrc := filepath.Join(challengePath, "go.mod")
-	goModDst := filepath.Join(tempDir, "go.mod")
-	if _, statErr := os.Stat(goModSrc); statErr == nil {
-		data, readErr := os.ReadFile(goModSrc)
-		if readErr == nil {
-			err = os.WriteFile(goModDst, data, 0644)
-			if err != nil {
-				return "", cleanup, fmt.Errorf("Failed to copy go.mod: %w", err)
-			}
-		}
-	}
-
-	goSumSrc := filepath.Join(challengePath, "go.sum")
+	goSumSrc := filepath.Join(srcDst, "go.sum")
 	goSumDst := filepath.Join(tempDir, "go.sum")
 	if _, statErr := os.Stat(goSumSrc); statErr == nil {
 		data, readErr := os.ReadFile(goSumSrc)
-		if readErr == nil {
-			os.WriteFile(goSumDst, data, 0644)
+		if readErr != nil {
+			cleanup()
+			return "", nil, fmt.Errorf("Failed to read src/go.sum: %w", readErr)
+		}
+		if writeErr := os.WriteFile(goSumDst, data, 0644); writeErr != nil {
+			cleanup()
+			return "", nil, fmt.Errorf("Failed to write go.sum: %w", writeErr)
+		}
+		// Delete src/go.sum after copying
+		if removeErr := os.Remove(goSumSrc); removeErr != nil {
+			cleanup()
+			return "", nil, fmt.Errorf("Failed to remove src/go.sum: %w", removeErr)
 		}
 	}
 

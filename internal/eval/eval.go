@@ -3,6 +3,7 @@ package eval
 import (
 	"context"
 	"fmt"
+	"log"
 	"path/filepath"
 	"time"
 
@@ -23,6 +24,8 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	if len(dirPath) == 0 {
 		dirPath = "./"
 	}
+	debugMode := cmd.Bool("debug")
+
 	err := tools.ValidateDirPath(dirPath)
 	if err != nil {
 		return err
@@ -54,11 +57,15 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return fmt.Errorf("Failed to prepare temporary environment for evaluation: %w", err)
 	}
-	defer cleanup()
+	if !debugMode {
+		defer cleanup()
+	} else {
+		log.Printf("Location of tmpDir for eval: %s\n", tempDir)
+	}
 
 	testResult, err, timedOut := executeTests(handler, tempDir)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to execute tests: %w", err)
 	}
 
 	runData.TestDuration = testResult.Duration

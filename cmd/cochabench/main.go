@@ -34,6 +34,11 @@ func main() {
 						Aliases: []string{"p"},
 						Usage:   "Path to directory of challenge",
 					},
+					&cli.BoolFlag{
+						Name:    "debug",
+						Aliases: []string{"d"},
+						Usage:   "Debug Mode: Keep tmp dir and print tmp location",
+					},
 				},
 			},
 			{
