@@ -153,7 +153,12 @@ func (h GoHandler) PrepareEnvironment(challengePath string, runID string) (tempD
 	for _, file := range testFiles {
 		if !file.IsDir() {
 			srcPath := filepath.Join(testSrc, file.Name())
-			dstPath := filepath.Join(srcDst, file.Name())
+			var dstPath string
+			if file.Name() == "go.mod" {
+				dstPath = filepath.Join(srcDst, "..", file.Name())
+			} else {
+				dstPath = filepath.Join(srcDst, file.Name())
+			}
 			data, readErr := os.ReadFile(srcPath)
 			if readErr != nil {
 				cleanup()
