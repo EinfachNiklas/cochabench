@@ -4,16 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 
 	projectTools "github.com/EinfachNiklas/cochabench/internal/tools"
 
 	"github.com/tmc/langchaingo/agents"
+	"github.com/tmc/langchaingo/chains"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/anthropic"
 	"github.com/tmc/langchaingo/prompts"
 	"github.com/tmc/langchaingo/tools"
+)
+
+const (
+	EvaluationRuns = 3
 )
 
 type Evaluator struct {
@@ -21,9 +25,9 @@ type Evaluator struct {
 }
 
 type EvaluatorResult struct {
-	Quality         int `json:"quality"`
-	Maintainability int `json:"maintainability"`
-	Security        int `json:"security"`
+	Quality         float64 `json:"quality"`
+	Maintainability float64 `json:"maintainability"`
+	Security        float64 `json:"security"`
 }
 
 func csvFromTools(tools []tools.Tool, mode int) string {
@@ -154,38 +158,54 @@ func NewEvaluator() (*Evaluator, error) {
 }
 
 func (evaluator *Evaluator) Evaluate(tmpDir string) (*EvaluatorResult, error) {
-	fmt.Println("Starting AI Evaluation...")
+	fmt.Printf("Starting AI Evaluation (%d runs)...\n", EvaluationRuns)
 	ctx := context.Background()
 
-	responses, err := evaluator.executor.Call(ctx, map[string]any{"tmp_dir": tmpDir})
-	if err != nil {
-		return nil, fmt.Errorf("Error when running AI Evaluator: %v\n", err)
-	}
+	var qualitySum, maintainabilitySum, securitySum float64
 
-	output, ok := responses["output"].(string)
-	if !ok {
-		return nil, fmt.Errorf("Failed to extract output from agent response")
-	}
+	for run := 1; run <= EvaluationRuns; run++ {
+		fmt.Printf("Run %d/%d...\n", run, EvaluationRuns)
 
-	// Remove markdown code blocks if present (```json ... ``` or ``` ... ```)
-	output = strings.TrimSpace(output)
-	if strings.HasPrefix(output, "```") {
-		output = strings.TrimPrefix(output, "```json")
-		output = strings.TrimPrefix(output, "```")
-		output = strings.TrimSpace(output)
-		if idx := strings.LastIndex(output, "```"); idx != -1 {
-			output = output[:idx]
+		responses, err := evaluator.executor.Call(ctx, map[string]any{"tmp_dir": tmpDir}, chains.WithTemperature(0.0))
+		if err != nil {
+			return nil, fmt.Errorf("Error on run %d: %v\n", run, err)
 		}
+
+		output, ok := responses["output"].(string)
+		if !ok {
+			return nil, fmt.Errorf("Failed to extract output from agent response on run %d", run)
+		}
+
+		// Remove markdown code blocks if present (```json ... ``` or ``` ... ```)
 		output = strings.TrimSpace(output)
+		if strings.HasPrefix(output, "```") {
+			output = strings.TrimPrefix(output, "```json")
+			output = strings.TrimPrefix(output, "```")
+			output = strings.TrimSpace(output)
+			if idx := strings.LastIndex(output, "```"); idx != -1 {
+				output = output[:idx]
+			}
+			output = strings.TrimSpace(output)
+		}
+
+		var runResult EvaluatorResult
+		if err := json.Unmarshal([]byte(output), &runResult); err != nil {
+			return nil, fmt.Errorf("Failed to parse JSON output on run %d: %w\nOutput was: %s", run, err, output)
+		}
+
+		qualitySum += runResult.Quality
+		maintainabilitySum += runResult.Maintainability
+		securitySum += runResult.Security
 	}
 
-	var result EvaluatorResult
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		return nil, fmt.Errorf("Failed to parse JSON output: %w\nOutput was: %s", err, output)
+	avgResult := &EvaluatorResult{
+		Quality:         qualitySum / float64(EvaluationRuns),
+		Maintainability: maintainabilitySum / float64(EvaluationRuns),
+		Security:        securitySum / float64(EvaluationRuns),
 	}
 
-	log.Printf("AI Evaluation Result: Quality=%d, Maintainability=%d, Security=%d\n",
-		result.Quality, result.Maintainability, result.Security)
+	fmt.Printf("AI Evaluation Result: Quality=%.2f, Maintainability=%.2f, Security=%.2f\n",
+		avgResult.Quality, avgResult.Maintainability, avgResult.Security)
 	fmt.Println("Finished AI Evaluation")
-	return &result, nil
+	return avgResult, nil
 }

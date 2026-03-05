@@ -24,9 +24,9 @@ type CochabenchEntry struct {
 	NumPassedTests       int
 	NumFailedTests       int
 	NumSkippedTests      int
-	QualityScore         int
-	MaintainabilityScore int
-	SecurityScore        int
+	QualityScore         float64
+	MaintainabilityScore float64
+	SecurityScore        float64
 }
 type Store map[string]CochabenchEntry
 

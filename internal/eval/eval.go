@@ -26,6 +26,7 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 		dirPath = "./"
 	}
 	debugMode := cmd.Bool("debug")
+	noAIEval := cmd.Bool("no-ai-eval")
 
 	err := tools.ValidateDirPath(dirPath)
 	if err != nil {
@@ -69,14 +70,23 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("Failed to execute tests: %w", err)
 	}
 
-	evaluator, err := agent.NewEvaluator()
-	if err != nil {
-		return err
-	}
+	if noAIEval {
+		runData.QualityScore = -1
+		runData.MaintainabilityScore = -1
+		runData.SecurityScore = -1
+	} else {
+		evaluator, err := agent.NewEvaluator()
+		if err != nil {
+			return err
+		}
 
-	aiEvaluation, err := evaluator.Evaluate(tempDir)
-	if err != nil {
-		return err
+		aiEvaluation, err := evaluator.Evaluate(tempDir)
+		if err != nil {
+			return err
+		}
+		runData.QualityScore = aiEvaluation.Quality
+		runData.MaintainabilityScore = aiEvaluation.Maintainability
+		runData.SecurityScore = aiEvaluation.Security
 	}
 
 	runData.TestDuration = testResult.Duration
@@ -86,9 +96,6 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	runData.NumPassedTests = testResult.PassedTests
 	runData.NumFailedTests = testResult.FailedTests
 	runData.NumSkippedTests = testResult.SkippedTests
-	runData.QualityScore = aiEvaluation.Quality
-	runData.MaintainabilityScore = aiEvaluation.Maintainability
-	runData.SecurityScore = aiEvaluation.Security
 
 	fmt.Println(runData)
 
