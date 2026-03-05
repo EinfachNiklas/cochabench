@@ -19,29 +19,6 @@ func main() {
 		Usage: "Handle the coding challenges",
 		Commands: []*cli.Command{
 			{
-				Name:    "eval",
-				Aliases: []string{"e"},
-				Usage:   "Evaluate Coding Challenge",
-				Action:  eval.Evaluate,
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:    "runID",
-						Aliases: []string{"i"},
-						Usage:   "RunID of Run to evaluate",
-					},
-					&cli.StringFlag{
-						Name:    "path",
-						Aliases: []string{"p"},
-						Usage:   "Path to directory of challenge",
-					},
-					&cli.BoolFlag{
-						Name:    "debug",
-						Aliases: []string{"d"},
-						Usage:   "Debug Mode: Keep tmp dir and print tmp location",
-					},
-				},
-			},
-			{
 				Name:    "run",
 				Aliases: []string{"r"},
 				Usage:   "Handle Run Events",
@@ -79,6 +56,34 @@ func main() {
 								Name:    "id",
 								Aliases: []string{"i"},
 								Usage:   "ID of run to stop",
+							},
+						},
+					},
+					{
+						Name:    "eval",
+						Aliases: []string{"e"},
+						Usage:   "Evaluate Coding Challenge",
+						Action:  eval.Evaluate,
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:    "runID",
+								Aliases: []string{"i"},
+								Usage:   "RunID of Run to evaluate",
+							},
+							&cli.StringFlag{
+								Name:    "path",
+								Aliases: []string{"p"},
+								Usage:   "Path to directory of challenge",
+							},
+							&cli.BoolFlag{
+								Name:    "debug",
+								Aliases: []string{"d"},
+								Usage:   "Debug Mode: Keep tmp dir and print tmp location",
+							},
+							&cli.BoolFlag{
+								Name:    "no-ai-eval",
+								Aliases: []string{"no-ai"},
+								Usage:   "Disables the AI Evaluation: Values Quality, Maintainability and Security will be set to -1",
 							},
 						},
 					},

@@ -9,6 +9,7 @@ import (
 
 	"github.com/urfave/cli/v3"
 
+	"github.com/EinfachNiklas/cochabench/internal/eval/agent"
 	"github.com/EinfachNiklas/cochabench/internal/run"
 	"github.com/EinfachNiklas/cochabench/internal/tools"
 )
@@ -25,6 +26,7 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 		dirPath = "./"
 	}
 	debugMode := cmd.Bool("debug")
+	noAIEval := cmd.Bool("no-ai-eval")
 
 	err := tools.ValidateDirPath(dirPath)
 	if err != nil {
@@ -66,6 +68,25 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	testResult, err, timedOut := executeTests(handler, tempDir)
 	if err != nil {
 		return fmt.Errorf("Failed to execute tests: %w", err)
+	}
+
+	if noAIEval {
+		runData.QualityScore = -1
+		runData.MaintainabilityScore = -1
+		runData.SecurityScore = -1
+	} else {
+		evaluator, err := agent.NewEvaluator()
+		if err != nil {
+			return err
+		}
+
+		aiEvaluation, err := evaluator.Evaluate(tempDir)
+		if err != nil {
+			return err
+		}
+		runData.QualityScore = aiEvaluation.Quality
+		runData.MaintainabilityScore = aiEvaluation.Maintainability
+		runData.SecurityScore = aiEvaluation.Security
 	}
 
 	runData.TestDuration = testResult.Duration
