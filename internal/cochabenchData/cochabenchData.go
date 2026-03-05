@@ -12,18 +12,21 @@ import (
 )
 
 type CochabenchEntry struct {
-	RunName         string
-	RunID           string
-	RunStatus       string
-	StartTime       time.Time
-	EndTime         time.Time
-	TestDuration    time.Duration
-	PassedTests     bool
-	TimedOut        bool
-	NumTotalTests   int
-	NumPassedTests  int
-	NumFailedTests  int
-	NumSkippedTests int
+	RunName              string
+	RunID                string
+	RunStatus            string
+	StartTime            time.Time
+	EndTime              time.Time
+	TestDuration         time.Duration
+	PassedTests          bool
+	TimedOut             bool
+	NumTotalTests        int
+	NumPassedTests       int
+	NumFailedTests       int
+	NumSkippedTests      int
+	QualityScore         int
+	MaintainabilityScore int
+	SecurityScore        int
 }
 type Store map[string]CochabenchEntry
 

@@ -1,1 +1,3 @@
 internal/eval/handlers/javascript.go
+.env
+.claude/settings.local.json

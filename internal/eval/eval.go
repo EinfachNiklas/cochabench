@@ -9,6 +9,7 @@ import (
 
 	"github.com/urfave/cli/v3"
 
+	"github.com/EinfachNiklas/cochabench/internal/eval/agent"
 	"github.com/EinfachNiklas/cochabench/internal/run"
 	"github.com/EinfachNiklas/cochabench/internal/tools"
 )
@@ -68,6 +69,16 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("Failed to execute tests: %w", err)
 	}
 
+	evaluator, err := agent.NewEvaluator()
+	if err != nil {
+		return err
+	}
+
+	aiEvaluation, err := evaluator.Evaluate(tempDir)
+	if err != nil {
+		return err
+	}
+
 	runData.TestDuration = testResult.Duration
 	runData.PassedTests = testResult.Passed
 	runData.TimedOut = timedOut
@@ -75,6 +86,9 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	runData.NumPassedTests = testResult.PassedTests
 	runData.NumFailedTests = testResult.FailedTests
 	runData.NumSkippedTests = testResult.SkippedTests
+	runData.QualityScore = aiEvaluation.Quality
+	runData.MaintainabilityScore = aiEvaluation.Maintainability
+	runData.SecurityScore = aiEvaluation.Security
 
 	fmt.Println(runData)
 
