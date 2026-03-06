@@ -20,9 +20,7 @@ const (
 	EvaluationRuns = 3
 )
 
-type Evaluator struct {
-	executor agents.Executor
-}
+type Evaluator struct{}
 
 type EvaluatorResult struct {
 	Quality         float64 `json:"quality"`
@@ -139,65 +137,77 @@ func getEvalAgent() (*agents.OneShotZeroAgent, error) {
 	return agent, nil
 }
 
-func NewEvaluator() (*Evaluator, error) {
-	fmt.Println("Setting Up AI Evaluator...")
+func NewEvaluator() *Evaluator {
+	return &Evaluator{}
+}
+
+func runSingleEvaluation(ctx context.Context, cScores chan []float64, cErr chan error, run int, tmpDir string) {
 	agent, err := getEvalAgent()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to set up AI Evaluator: %v\n", err)
+		cErr <- fmt.Errorf("Error on run %d: %v\n", run, err)
+		return
+	}
+	executor := agents.NewExecutor(agent, agents.WithMaxIterations(20))
+
+	responses, err := executor.Call(ctx, map[string]any{"tmp_dir": tmpDir}, chains.WithTemperature(0.0))
+	if err != nil {
+		cErr <- fmt.Errorf("Error on run %d: %v\n", run, err)
+		return
 	}
 
-	executor := agents.NewExecutor(
-		agent,
-		agents.WithMaxIterations(20),
-	)
-	fmt.Println("Finished Setup for AI Evaluator")
+	output, ok := responses["output"].(string)
+	if !ok {
+		cErr <- fmt.Errorf("Failed to extract output from agent response on run %d", run)
+		return
+	}
 
-	return &Evaluator{
-		executor: *executor,
-	}, nil
+	// Remove markdown code blocks if present (```json ... ``` or ``` ... ```)
+	output = strings.TrimSpace(output)
+	if strings.HasPrefix(output, "```") {
+		output = strings.TrimPrefix(output, "```json")
+		output = strings.TrimPrefix(output, "```")
+		output = strings.TrimSpace(output)
+		if idx := strings.LastIndex(output, "```"); idx != -1 {
+			output = output[:idx]
+		}
+		output = strings.TrimSpace(output)
+	}
+
+	var runResult EvaluatorResult
+	if err := json.Unmarshal([]byte(output), &runResult); err != nil {
+		cErr <- fmt.Errorf("Failed to parse JSON output on run %d: %w\nOutput was: %s", run, err, output)
+		return
+	}
+
+	cScores <- []float64{runResult.Quality, runResult.Maintainability, runResult.Security}
 }
 
 func (evaluator *Evaluator) Evaluate(tmpDir string) (*EvaluatorResult, error) {
 	fmt.Printf("Starting AI Evaluation (%d runs)...\n", EvaluationRuns)
-	ctx := context.Background()
 
 	var qualitySum, maintainabilitySum, securitySum float64
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cScores := make(chan []float64, EvaluationRuns)
+	cErrors := make(chan error, EvaluationRuns)
 	for run := 1; run <= EvaluationRuns; run++ {
 		fmt.Printf("Run %d/%d...\n", run, EvaluationRuns)
-
-		responses, err := evaluator.executor.Call(ctx, map[string]any{"tmp_dir": tmpDir}, chains.WithTemperature(0.0))
-		if err != nil {
-			return nil, fmt.Errorf("Error on run %d: %v\n", run, err)
-		}
-
-		output, ok := responses["output"].(string)
-		if !ok {
-			return nil, fmt.Errorf("Failed to extract output from agent response on run %d", run)
-		}
-
-		// Remove markdown code blocks if present (```json ... ``` or ``` ... ```)
-		output = strings.TrimSpace(output)
-		if strings.HasPrefix(output, "```") {
-			output = strings.TrimPrefix(output, "```json")
-			output = strings.TrimPrefix(output, "```")
-			output = strings.TrimSpace(output)
-			if idx := strings.LastIndex(output, "```"); idx != -1 {
-				output = output[:idx]
-			}
-			output = strings.TrimSpace(output)
-		}
-
-		var runResult EvaluatorResult
-		if err := json.Unmarshal([]byte(output), &runResult); err != nil {
-			return nil, fmt.Errorf("Failed to parse JSON output on run %d: %w\nOutput was: %s", run, err, output)
-		}
-
-		qualitySum += runResult.Quality
-		maintainabilitySum += runResult.Maintainability
-		securitySum += runResult.Security
+		go runSingleEvaluation(ctx, cScores, cErrors, run, tmpDir)
 	}
 
+	for range EvaluationRuns {
+		select {
+		case runScores := <-cScores:
+			qualitySum += runScores[0]
+			maintainabilitySum += runScores[1]
+			securitySum += runScores[2]
+		case err := <-cErrors:
+			cancel()
+			return nil, fmt.Errorf("Error when running Evaluator: %v\n", err)
+		}
+	}
 	avgResult := &EvaluatorResult{
 		Quality:         qualitySum / float64(EvaluationRuns),
 		Maintainability: maintainabilitySum / float64(EvaluationRuns),
@@ -208,4 +218,5 @@ func (evaluator *Evaluator) Evaluate(tmpDir string) (*EvaluatorResult, error) {
 		avgResult.Quality, avgResult.Maintainability, avgResult.Security)
 	fmt.Println("Finished AI Evaluation")
 	return avgResult, nil
+
 }
