@@ -34,12 +34,12 @@ func csvFromTools(tools []tools.Tool, mode int) string {
 		if mode == 1 {
 			values = append(values, v.Name())
 		} else if mode == 2 {
-			values = append(values, v.Description())
+			values = append(values, fmt.Sprintf("%s: %s", v.Name(), v.Description()))
 		} else {
 			return ""
 		}
 	}
-	return strings.Join(values, ",")
+	return strings.Join(values, "; ")
 }
 
 func getLLM() (*llms.Model, error) {
@@ -82,7 +82,7 @@ func getEvalAgent() (*agents.OneShotZeroAgent, error) {
 		Template: `
 			You are an experienced Code Reviewer.
 			
-			Goal: Evaluate a coding Project regarding software quality, maintainability and security and generate a score from 1-10 for each category.
+			Goal: Evaluate a coding Project regarding software quality (Readability, Structure, Adherence to Coding Conventions), maintainability (Maintainability, Modularity, Extendability) and security (Security Aspects, potential weaknesses) and generate a score from 1-10 for each category.
 
 			The test files were already provided ans must not influence your score decision.
 
