@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/EinfachNiklas/cochabench/internal/tools"
 	"github.com/urfave/cli/v3"
@@ -36,7 +37,12 @@ func GetConfig() (*Config, error) {
 
 	_, err = os.Stat(configPath)
 	if os.IsNotExist(err) {
-		config = Config{LLM_PROVIDER: "anthropic", LLM_BASE_PATH: "https://api.anthropic.com/v1", LLM_MODEL: "claude-sonnet-4-6", CHALLENGE_SERVER: "https://github.com/EinfachNiklas/cochabench-challenges-test/"}
+		config = Config{
+			LLM_PROVIDER:     "anthropic",
+			LLM_BASE_PATH:    "https://api.anthropic.com/v1",
+			LLM_MODEL:        "claude-sonnet-4-6",
+			CHALLENGE_SERVER: "https://github.com/EinfachNiklas/cochabench-challenges-test/",
+		}
 		if err := saveConfig(&config); err != nil {
 			return nil, err
 		}
@@ -105,9 +111,15 @@ func Show(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+	fields := configFields(config)
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
 	tb := tools.NewTableBuilder([]string{"Key", "Value"})
-	for key, val := range configFields(config) {
-		tb.AddRow([]string{key, *val})
+	for _, key := range keys {
+		tb.AddRow([]string{key, *fields[key]})
 	}
 	fmt.Print(tb.Build())
 	return nil

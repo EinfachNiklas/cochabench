@@ -14,7 +14,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/EinfachNiklas/cochabench/internal/config"
+	cfg "github.com/EinfachNiklas/cochabench/internal/config"
 	"github.com/EinfachNiklas/cochabench/internal/tools"
 	"github.com/urfave/cli/v3"
 )
@@ -56,11 +56,11 @@ func (m Manifest) toString() string {
 func downloadManifest() (*Manifest, error) {
 	var manifest Manifest
 	fmt.Println("Fetching Manifest")
-	config, err := config.GetConfig()
+	c, err := cfg.GetConfig()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := http.Get(config.CHALLENGE_SERVER + "releases/latest/download/manifest.json")
+	resp, err := http.Get(c.CHALLENGE_SERVER + "releases/latest/download/manifest.json")
 	if err != nil {
 		return nil, errors.Join(errors.New("Cannot download challenge manifest"), err)
 	}

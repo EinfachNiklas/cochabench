@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/EinfachNiklas/cochabench/internal/config"
+	cfg "github.com/EinfachNiklas/cochabench/internal/config"
 	projectTools "github.com/EinfachNiklas/cochabench/internal/tools"
 
 	"github.com/tmc/langchaingo/agents"
@@ -49,27 +49,27 @@ func getLLM() (*llms.Model, error) {
 		return nil, err
 	}
 
-	config, err := config.GetConfig()
+	c, err := cfg.GetConfig()
 	if err != nil {
 		return nil, err
 	}
 
 	var llm llms.Model
-	switch config.LLM_PROVIDER {
+	switch c.LLM_PROVIDER {
 	case "anthropic":
 		opts := []anthropic.Option{
 			anthropic.WithToken(env.LLM_API_KEY),
-			anthropic.WithModel(config.LLM_MODEL),
+			anthropic.WithModel(c.LLM_MODEL),
 		}
-		if config.LLM_BASE_PATH != "" {
-			opts = append(opts, anthropic.WithBaseURL(config.LLM_BASE_PATH))
+		if c.LLM_BASE_PATH != "" {
+			opts = append(opts, anthropic.WithBaseURL(c.LLM_BASE_PATH))
 		}
 		llm, err = anthropic.New(opts...)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to setup Anthropic %s: %v\n", config.LLM_MODEL, err)
+			return nil, fmt.Errorf("Failed to setup Anthropic %s: %v\n", c.LLM_MODEL, err)
 		}
 	default:
-		return nil, fmt.Errorf("LLM Provider %s is not supported", config.LLM_PROVIDER)
+		return nil, fmt.Errorf("LLM Provider %s is not supported", c.LLM_PROVIDER)
 	}
 	return &llm, nil
 }
