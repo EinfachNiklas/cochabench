@@ -15,32 +15,6 @@ import (
 	"github.com/EinfachNiklas/cochabench/internal/tools"
 )
 
-func LoadEntry(dirPath string, id string) (*cochabenchdata.CochabenchEntry, error) {
-
-	if len(id) == 0 {
-		return nil, errors.New("No ID provided")
-	}
-
-	err := tools.ValidateDirPath(dirPath)
-	if err != nil {
-		return nil, err
-	}
-	err = tools.ValidateDirStructure(dirPath)
-	if err != nil {
-		return nil, err
-	}
-
-	store, err := cochabenchdata.LoadCochabenchStore(dirPath)
-	if err != nil {
-		return nil, err
-	}
-	entry, ok := (*store)[id]
-	if !ok {
-		return nil, errors.New("RunID not found")
-	}
-	return &entry, nil
-}
-
 func Init(ctx context.Context, cmd *cli.Command) error {
 	dirPath := cmd.Args().Get(0)
 	if len(dirPath) == 0 {
@@ -62,7 +36,13 @@ func Init(ctx context.Context, cmd *cli.Command) error {
 		RunStatus: "I",
 	}
 
-	err = entry.Write(dirPath)
+	store, err := cochabenchdata.LoadCochabenchStore(dirPath)
+	if err != nil {
+		return fmt.Errorf("Could not load CochabenchStore: %v\n", err)
+	}
+	defer store.Close()
+
+	err = store.SaveEntry(&entry)
 	if err != nil {
 		return err
 	}
@@ -87,21 +67,31 @@ func Start(ctx context.Context, cmd *cli.Command) error {
 		dirPath = "./"
 	}
 	id := cmd.String("id")
-	entry, err := LoadEntry(dirPath, id)
+
+	store, err := cochabenchdata.LoadCochabenchStore(dirPath)
+	if err != nil {
+		return fmt.Errorf("Could not load CochabenchStore: %v\n", err)
+	}
+	defer store.Close()
+
+	entry, found, err := store.GetEntry(id)
 	if err != nil {
 		return err
+	}
+	if !found {
+		return fmt.Errorf("This run does not exist")
 	}
 	switch entry.RunStatus {
 	case "R":
 		return errors.New("Run " + entry.RunName + "[" + id + "] is already running\n")
 	case "F":
-		return errors.New("Run " + entry.RunName + "[" + id + "] is already finnished\n")
+		return errors.New("Run " + entry.RunName + "[" + id + "] is already finished\n")
 	case "I", "C":
 		entry.StartTime = time.Now()
 		entry.RunStatus = "R"
 	}
 
-	err = entry.Write(dirPath)
+	err = store.SaveEntry(entry)
 	if err != nil {
 		return err
 	}
@@ -115,10 +105,21 @@ func Stop(ctx context.Context, cmd *cli.Command) error {
 		dirPath = "./"
 	}
 	id := cmd.String("id")
-	entry, err := LoadEntry(dirPath, id)
+
+	store, err := cochabenchdata.LoadCochabenchStore(dirPath)
+	if err != nil {
+		return fmt.Errorf("Could not load CochabenchStore: %v\n", err)
+	}
+	defer store.Close()
+
+	entry, found, err := store.GetEntry(id)
 	if err != nil {
 		return err
 	}
+	if !found {
+		return fmt.Errorf("This run does not exist")
+	}
+
 	switch entry.RunStatus {
 	case "R":
 		entry.EndTime = time.Now()
@@ -129,7 +130,7 @@ func Stop(ctx context.Context, cmd *cli.Command) error {
 		return errors.New("Run " + entry.RunName + "[" + id + "] is not running\n")
 	}
 
-	err = entry.Write(dirPath)
+	err = store.SaveEntry(entry)
 	if err != nil {
 		return err
 	}
@@ -143,10 +144,21 @@ func Cancel(ctx context.Context, cmd *cli.Command) error {
 		dirPath = "./"
 	}
 	id := cmd.String("id")
-	entry, err := LoadEntry(dirPath, id)
+
+	store, err := cochabenchdata.LoadCochabenchStore(dirPath)
+	if err != nil {
+		return fmt.Errorf("Could not load CochabenchStore: %v\n", err)
+	}
+	defer store.Close()
+
+	entry, found, err := store.GetEntry(id)
 	if err != nil {
 		return err
 	}
+	if !found {
+		return fmt.Errorf("This run does not exist")
+	}
+
 	switch entry.RunStatus {
 	case "R":
 		entry.RunStatus = "C"
@@ -156,7 +168,7 @@ func Cancel(ctx context.Context, cmd *cli.Command) error {
 		return errors.New("Run " + entry.RunName + "[" + id + "] is not running\n")
 	}
 
-	err = entry.Write(dirPath)
+	err = store.SaveEntry(entry)
 	if err != nil {
 		return err
 	}
@@ -181,6 +193,7 @@ func List(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+	defer store.Close()
 	fmt.Println(store.ToString())
 	return nil
 }
