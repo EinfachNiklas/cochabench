@@ -100,13 +100,6 @@ func (store *Store) ToString() string {
 	}
 	defer rows.Close()
 
-	fmtTime := func(t time.Time) string {
-		if t.IsZero() {
-			return "-"
-		}
-		return t.Local().Format("2006-01-02 15:04:05")
-	}
-
 	tb := tools.NewTableBuilder([]string{"RunID", "RunName", "Status", "StartTime", "EndTime", "Duration", "TimedOut", "Total", "Passed", "Failed", "Quality", "Maintainability", "Security"})
 	hasRows := false
 
@@ -121,8 +114,8 @@ func (store *Store) ToString() string {
 			entry.RunID,
 			entry.RunName,
 			entry.RunStatus,
-			fmtTime(entry.StartTime),
-			fmtTime(entry.EndTime),
+			tools.FmtTime(entry.StartTime),
+			tools.FmtTime(entry.EndTime),
 			entry.TestDuration.String(),
 			fmt.Sprintf("%v", entry.TimedOut),
 			fmt.Sprintf("%d", entry.NumTotalTests),

@@ -101,7 +101,7 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	runData.NumPassedTests = testResult.PassedTests
 	runData.NumFailedTests = testResult.FailedTests
 
-	fmt.Println(runData)
+	printEvaluationAsTable(runData)
 
 	err = store.SaveEntry(runData)
 	if err != nil {
@@ -148,4 +148,24 @@ func executeTests(handler LanguageHandler, tempDir string) (result *TestResult, 
 	case <-ctx.Done():
 		return nil, fmt.Errorf("Test execution timed out"), true
 	}
+}
+
+func printEvaluationAsTable(entry *cochabenchdata.CochabenchEntry) {
+	tb := tools.NewTableBuilder([]string{"RunID", "RunName", "Status", "StartTime", "EndTime", "Duration", "TimedOut", "Total", "Passed", "Failed", "Quality", "Maintainability", "Security"})
+	tb.AddRow([]string{
+		entry.RunID,
+		entry.RunName,
+		entry.RunStatus,
+		tools.FmtTime(entry.StartTime),
+		tools.FmtTime(entry.EndTime),
+		entry.TestDuration.String(),
+		fmt.Sprintf("%v", entry.TimedOut),
+		fmt.Sprintf("%d", entry.NumTotalTests),
+		fmt.Sprintf("%d", entry.NumPassedTests),
+		fmt.Sprintf("%d", entry.NumFailedTests),
+		fmt.Sprintf("%.2f", entry.QualityScore),
+		fmt.Sprintf("%.2f", entry.MaintainabilityScore),
+		fmt.Sprintf("%.2f", entry.SecurityScore),
+	})
+	fmt.Println(tb.Build())
 }

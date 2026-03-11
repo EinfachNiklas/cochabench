@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type ChallengeConfig struct {
@@ -170,4 +171,10 @@ func LoadEnv() (*Env, error) {
 		LLM_MODEL:     LLM_MODEL,
 		LLM_BASE_PATH: LLM_BASE_PATH,
 	}, nil
+}
+func FmtTime(t time.Time) string {
+	if t.IsZero() {
+		return "-"
+	}
+	return t.Local().Format("2006-01-02 15:04:05")
 }
