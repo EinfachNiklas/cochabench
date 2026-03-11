@@ -136,6 +136,22 @@ func main() {
 						Aliases: []string{"initialize", "i"},
 						Action:  config.Initialize,
 					},
+					{
+						Name:    "show",
+						Usage:   "Show all config values",
+						Aliases: []string{"s"},
+						Action:  config.Show,
+					},
+					{
+						Name:   "get",
+						Usage:  "Get a config value. Usage: config get <key>",
+						Action: config.Get,
+					},
+					{
+						Name:   "set",
+						Usage:  "Set a config value. Usage: config set <key> <value>",
+						Action: config.Set,
+					},
 				},
 			},
 		},
