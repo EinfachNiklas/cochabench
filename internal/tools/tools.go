@@ -23,10 +23,7 @@ type TableBuilder struct {
 }
 
 type Env struct {
-	LLM_API_KEY   string
-	LLM_PROVIDER  string
-	LLM_MODEL     string
-	LLM_BASE_PATH string
+	LLM_API_KEY string
 }
 
 // NewTableBuilder creates a new table builder with the specified headers
@@ -153,23 +150,8 @@ func LoadEnv() (*Env, error) {
 	if len(LLM_API_KEY) == 0 {
 		return nil, fmt.Errorf("Required Environment Variable LLM_API_KEY is not set")
 	}
-	LLM_PROVIDER := os.Getenv("LLM_PROVIDER")
-	if len(LLM_PROVIDER) == 0 {
-		return nil, fmt.Errorf("Required Environment Variable LLM_PROVIDER is not set")
-	}
-	LLM_MODEL := os.Getenv("LLM_MODEL")
-	if len(LLM_MODEL) == 0 {
-		return nil, fmt.Errorf("Required Environment Variable LLM_MODEL is not set")
-	}
-	LLM_BASE_PATH := os.Getenv("LLM_BASE_PATH")
-	if len(LLM_BASE_PATH) == 0 {
-		fmt.Printf("Optional Environment Variable LLM_BASE_PATH is not set\nUsing Defaults\n")
-	}
 	return &Env{
-		LLM_API_KEY:   LLM_API_KEY,
-		LLM_PROVIDER:  LLM_PROVIDER,
-		LLM_MODEL:     LLM_MODEL,
-		LLM_BASE_PATH: LLM_BASE_PATH,
+		LLM_API_KEY: LLM_API_KEY,
 	}, nil
 }
 func FmtTime(t time.Time) string {

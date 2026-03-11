@@ -14,11 +14,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/EinfachNiklas/cochabench/internal/config"
 	"github.com/EinfachNiklas/cochabench/internal/tools"
 	"github.com/urfave/cli/v3"
 )
-
-const REPO_BASE_URL = "https://github.com/EinfachNiklas/cochabench-challenges-test/"
 
 type Challenge struct {
 	Title      string
@@ -57,7 +56,11 @@ func (m Manifest) toString() string {
 func downloadManifest() (*Manifest, error) {
 	var manifest Manifest
 	fmt.Println("Fetching Manifest")
-	resp, err := http.Get(REPO_BASE_URL + "releases/latest/download/manifest.json")
+	config, err := config.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.Get(config.CHALLENGE_SERVER + "releases/latest/download/manifest.json")
 	if err != nil {
 		return nil, errors.Join(errors.New("Cannot download challenge manifest"), err)
 	}

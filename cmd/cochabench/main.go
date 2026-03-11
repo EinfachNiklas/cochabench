@@ -6,6 +6,7 @@ import (
 	"os"
 
 	challenges "github.com/EinfachNiklas/cochabench/internal/challenge"
+	"github.com/EinfachNiklas/cochabench/internal/config"
 	"github.com/EinfachNiklas/cochabench/internal/eval"
 	"github.com/EinfachNiklas/cochabench/internal/run"
 	"github.com/google/uuid"
@@ -122,6 +123,18 @@ func main() {
 						Name:   "get",
 						Usage:  "Downloads a set challenge",
 						Action: challenges.Get,
+					},
+				},
+			},
+			{
+				Name:  "config",
+				Usage: "Manage configuration",
+				Commands: []*cli.Command{
+					{
+						Name:    "init",
+						Usage:   "Initialize the config file",
+						Aliases: []string{"initialize", "i"},
+						Action:  config.Initialize,
 					},
 				},
 			},
