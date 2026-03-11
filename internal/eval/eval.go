@@ -9,8 +9,8 @@ import (
 
 	"github.com/urfave/cli/v3"
 
+	cochabenchdata "github.com/EinfachNiklas/cochabench/internal/cochabenchData"
 	"github.com/EinfachNiklas/cochabench/internal/eval/agent"
-	"github.com/EinfachNiklas/cochabench/internal/run"
 	"github.com/EinfachNiklas/cochabench/internal/tools"
 )
 
@@ -41,9 +41,18 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	runData, err := run.LoadEntry(dirPath, runID)
+	store, err := cochabenchdata.LoadCochabenchStore(dirPath)
+	if err != nil {
+		return fmt.Errorf("Could not load CochabenchStore: %v\n", err)
+	}
+	defer store.Close()
+
+	runData, found, err := store.GetEntry(runID)
 	if err != nil {
 		return fmt.Errorf("Could not load Run Data: %w", err)
+	}
+	if !found {
+		return fmt.Errorf("This run does not exist")
 	}
 
 	if runData.RunStatus != "F" {
@@ -87,16 +96,17 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	runData.TestDuration = testResult.Duration
-	runData.PassedTests = testResult.Passed
 	runData.TimedOut = timedOut
 	runData.NumTotalTests = testResult.TotalTests
 	runData.NumPassedTests = testResult.PassedTests
 	runData.NumFailedTests = testResult.FailedTests
-	runData.NumSkippedTests = testResult.SkippedTests
 
 	fmt.Println(runData)
 
-	runData.Write(dirPath)
+	err = store.SaveEntry(runData)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
