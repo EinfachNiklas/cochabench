@@ -75,10 +75,7 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 		runData.MaintainabilityScore = -1
 		runData.SecurityScore = -1
 	} else {
-		evaluator, err := agent.NewEvaluator()
-		if err != nil {
-			return err
-		}
+		evaluator := agent.NewEvaluator()
 
 		aiEvaluation, err := evaluator.Evaluate(tempDir)
 		if err != nil {
