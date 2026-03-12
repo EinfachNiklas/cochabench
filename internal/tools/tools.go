@@ -150,6 +150,7 @@ func LoadEnv() (*Env, error) {
 	if len(LLM_API_KEY) == 0 {
 		return nil, fmt.Errorf("Required Environment Variable LLM_API_KEY is not set")
 	}
+
 	return &Env{
 		LLM_API_KEY: LLM_API_KEY,
 	}, nil
