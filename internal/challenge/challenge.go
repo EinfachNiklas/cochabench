@@ -1,4 +1,4 @@
-package challenges
+package challenge
 
 import (
 	"archive/zip"
@@ -18,11 +18,9 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-const REPO_BASE_URL = "https://github.com/EinfachNiklas/cochabench-challenges-test/"
-
 type Challenge struct {
 	Title      string
-	Location   string
+	Filename   string
 	Language   string
 	Difficulty string
 }
@@ -57,7 +55,12 @@ func (m Manifest) toString() string {
 func downloadManifest() (*Manifest, error) {
 	var manifest Manifest
 	fmt.Println("Fetching Manifest")
-	resp, err := http.Get(REPO_BASE_URL + "releases/latest/download/manifest.json")
+	manifestUrl, err := fetchGithubAPIUrl("manifest.json")
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := githubGet(manifestUrl, true)
 	if err != nil {
 		return nil, errors.Join(errors.New("Cannot download challenge manifest"), err)
 	}
@@ -78,14 +81,19 @@ func downloadManifest() (*Manifest, error) {
 
 }
 
-func downloadChallenge(location string, path string) error {
-	fmt.Printf("Fetching Challenge: %s\n", location)
-	resp, err := http.Get(location)
+func downloadChallenge(filename string, path string) error {
+	fmt.Printf("Fetching Challenge: %s\n", filename)
+
+	challengeUrl, err := fetchGithubAPIUrl(filename)
+	if err != nil {
+		return err
+	}
+
+	resp, err := githubGet(challengeUrl, true)
 	if err != nil {
 		return errors.Join(errors.New("Cannot download challenge"), err)
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("Error when downloading challenge: HTTP %d %s", resp.StatusCode, resp.Status)
 	}
@@ -153,7 +161,7 @@ func Get(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	zipExtractPath := filepath.Join(dirPath)
-	err = downloadChallenge(challenge.Location, zipExtractPath)
+	err = downloadChallenge(challenge.Filename, zipExtractPath)
 	if err != nil {
 		return errors.Join(errors.New("Failed to download challenge"), err)
 	}

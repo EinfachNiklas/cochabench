@@ -9,8 +9,8 @@ import (
 
 	"github.com/urfave/cli/v3"
 
+	cochabenchdata "github.com/EinfachNiklas/cochabench/internal/cochabenchData"
 	"github.com/EinfachNiklas/cochabench/internal/eval/agent"
-	"github.com/EinfachNiklas/cochabench/internal/run"
 	"github.com/EinfachNiklas/cochabench/internal/tools"
 )
 
@@ -41,9 +41,18 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	runData, err := run.LoadEntry(dirPath, runID)
+	store, err := cochabenchdata.LoadCochabenchStore(dirPath)
+	if err != nil {
+		return fmt.Errorf("Could not load CochabenchStore: %v\n", err)
+	}
+	defer store.Close()
+
+	runData, found, err := store.GetEntry(runID)
 	if err != nil {
 		return fmt.Errorf("Could not load Run Data: %w", err)
+	}
+	if !found {
+		return fmt.Errorf("This run does not exist")
 	}
 
 	if runData.RunStatus != "F" {
@@ -96,16 +105,17 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	runData.TestDuration = testResult.Duration
-	runData.PassedTests = testResult.Passed
 	runData.TimedOut = timedOut
 	runData.NumTotalTests = testResult.TotalTests
 	runData.NumPassedTests = testResult.PassedTests
 	runData.NumFailedTests = testResult.FailedTests
-	runData.NumSkippedTests = testResult.SkippedTests
 
-	fmt.Println(runData)
+	printEvaluationAsTable(runData)
 
-	runData.Write(dirPath)
+	err = store.SaveEntry(runData)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -147,4 +157,24 @@ func executeTests(handler LanguageHandler, tempDir string) (result *TestResult, 
 	case <-ctx.Done():
 		return nil, fmt.Errorf("Test execution timed out"), true
 	}
+}
+
+func printEvaluationAsTable(entry *cochabenchdata.CochabenchEntry) {
+	tb := tools.NewTableBuilder([]string{"RunID", "RunName", "Status", "StartTime", "EndTime", "Duration", "TimedOut", "Total", "Passed", "Failed", "Quality", "Maintainability", "Security"})
+	tb.AddRow([]string{
+		entry.RunID,
+		entry.RunName,
+		entry.RunStatus,
+		tools.FmtTime(entry.StartTime),
+		tools.FmtTime(entry.EndTime),
+		entry.TestDuration.String(),
+		fmt.Sprintf("%v", entry.TimedOut),
+		fmt.Sprintf("%d", entry.NumTotalTests),
+		fmt.Sprintf("%d", entry.NumPassedTests),
+		fmt.Sprintf("%d", entry.NumFailedTests),
+		fmt.Sprintf("%.2f", entry.QualityScore),
+		fmt.Sprintf("%.2f", entry.MaintainabilityScore),
+		fmt.Sprintf("%.2f", entry.SecurityScore),
+	})
+	fmt.Println(tb.Build())
 }

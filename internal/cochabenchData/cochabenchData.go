@@ -1,11 +1,9 @@
 package cochabenchdata
 
 import (
-	"encoding/json"
-	"errors"
-	"os"
-	"path/filepath"
-	"sort"
+	"database/sql"
+	"fmt"
+	"log"
 	"time"
 
 	"github.com/EinfachNiklas/cochabench/internal/tools"
@@ -18,98 +16,123 @@ type CochabenchEntry struct {
 	StartTime            time.Time
 	EndTime              time.Time
 	TestDuration         time.Duration
-	PassedTests          bool
 	TimedOut             bool
 	NumTotalTests        int
 	NumPassedTests       int
 	NumFailedTests       int
-	NumSkippedTests      int
 	QualityScore         float64
 	MaintainabilityScore float64
 	SecurityScore        float64
 }
-type Store map[string]CochabenchEntry
 
-const STORE_FILE_NAME = "cochabenchStore.json"
-
-func initStore(path string) (*Store, error) {
-	store := Store{}
-	jsonData, err := json.Marshal(store)
-	if err != nil {
-		return nil, err
-	}
-	err = os.WriteFile(filepath.Join(path, STORE_FILE_NAME), jsonData, 0666)
-	if err != nil {
-		return nil, err
-	}
-	return &store, nil
+type Store struct {
+	db *sql.DB
 }
 
 func LoadCochabenchStore(path string) (*Store, error) {
-	var store Store
-	data, err := os.ReadFile(filepath.Join(path, STORE_FILE_NAME))
-	if os.IsNotExist(err) {
-		return initStore(path)
-	} else if err != nil {
+	db, err := setupDB(path)
+	if err != nil {
 		return nil, err
 	}
-	err = json.Unmarshal(data, &store)
-	if err != nil {
-		return nil, errors.New("Malformed cochabench.json file in " + path)
-	}
-	return &store, nil
+	return &Store{db: db}, nil
 }
 
-func (data *CochabenchEntry) Write(path string) error {
-	store, err := LoadCochabenchStore(path)
+func (store *Store) GetEntry(runID string) (*CochabenchEntry, bool, error) {
+	stmt, err := store.db.Prepare("SELECT runId, runName, runStatus, startTime, endTime, duration, testTimedOut, numTotalTests, numPassedTests, numFailedTests, qualityScore, maintainabilityScore, securityScore FROM runs WHERE runId = ?")
 	if err != nil {
-		return err
+		return nil, false, fmt.Errorf("Failed to prepare SELECT statement: %v\n", err)
 	}
-	(*store)[data.RunID] = *data
-	jsonData, err := json.Marshal(store)
-	if err != nil {
-		return err
+	defer stmt.Close()
+	var entry CochabenchEntry
+	err = stmt.QueryRow(runID).Scan(
+		&entry.RunID,
+		&entry.RunName,
+		&entry.RunStatus,
+		&entry.StartTime,
+		&entry.EndTime,
+		&entry.TestDuration,
+		&entry.TimedOut,
+		&entry.NumTotalTests,
+		&entry.NumPassedTests,
+		&entry.NumFailedTests,
+		&entry.QualityScore,
+		&entry.MaintainabilityScore,
+		&entry.SecurityScore,
+	)
+	if err == sql.ErrNoRows {
+		return nil, false, nil
 	}
-	err = os.WriteFile(filepath.Join(path, STORE_FILE_NAME), jsonData, 0666)
 	if err != nil {
-		return err
+		return nil, false, fmt.Errorf("Failed to scan row: %v\n", err)
+	}
+	return &entry, true, nil
+}
+
+func (store *Store) SaveEntry(entry *CochabenchEntry) error {
+	_, err := store.db.Exec(`
+		INSERT INTO runs(runId, runName, runStatus, startTime, endTime, duration, testTimedOut, numTotalTests, numPassedTests, numFailedTests, qualityScore, maintainabilityScore, securityScore)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(runId) DO UPDATE SET
+			runName = excluded.runName,
+			runStatus = excluded.runStatus,
+			startTime = excluded.startTime,
+			endTime = excluded.endTime,
+			duration = excluded.duration,
+			testTimedOut = excluded.testTimedOut,
+			numTotalTests = excluded.numTotalTests,
+			numPassedTests = excluded.numPassedTests,
+			numFailedTests = excluded.numFailedTests,
+			qualityScore = excluded.qualityScore,
+			maintainabilityScore = excluded.maintainabilityScore,
+			securityScore = excluded.securityScore`,
+		entry.RunID, entry.RunName, entry.RunStatus, entry.StartTime, entry.EndTime, entry.TestDuration, entry.TimedOut, entry.NumTotalTests, entry.NumPassedTests, entry.NumFailedTests, entry.QualityScore, entry.MaintainabilityScore, entry.SecurityScore,
+	)
+	if err != nil {
+		return fmt.Errorf("Failed to save entry %v: %v\n", entry, err)
 	}
 	return nil
 }
+
 func (store *Store) ToString() string {
-	if store == nil || *store == nil || len(*store) == 0 {
-		return "(no entries)\n"
+	rows, err := store.db.Query("SELECT runId, runName, runStatus, startTime, endTime, duration, testTimedOut, numTotalTests, numPassedTests, numFailedTests, qualityScore, maintainabilityScore, securityScore FROM runs ORDER BY runId")
+	if err != nil {
+		return fmt.Sprintf("(error: %v)\n", err)
 	}
+	defer rows.Close()
 
-	// Sort for stable order
-	ids := make([]string, 0, len(*store))
-	for id := range *store {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
+	tb := tools.NewTableBuilder([]string{"RunID", "RunName", "Status", "StartTime", "EndTime", "Duration", "TimedOut", "Total", "Passed", "Failed", "Quality", "Maintainability", "Security"})
+	hasRows := false
 
-	// Helper for time formatting
-	fmtTime := func(t time.Time) string {
-		if t.IsZero() {
-			return "-"
+	for rows.Next() {
+		var entry CochabenchEntry
+		if err := rows.Scan(&entry.RunID, &entry.RunName, &entry.RunStatus, &entry.StartTime, &entry.EndTime, &entry.TestDuration, &entry.TimedOut, &entry.NumTotalTests, &entry.NumPassedTests, &entry.NumFailedTests, &entry.QualityScore, &entry.MaintainabilityScore, &entry.SecurityScore); err != nil {
+			log.Printf("Warning: failed to scan row: %v", err)
+			continue
 		}
-		return t.Local().Format("2006-01-02 15:04:05")
-	}
-
-	// Build table using shared utility
-	tb := tools.NewTableBuilder([]string{"ID", "RunName", "RunID", "Status", "StartTime", "EndTime"})
-
-	for _, id := range ids {
-		e := (*store)[id]
+		hasRows = true
 		tb.AddRow([]string{
-			id,
-			e.RunName,
-			e.RunID,
-			e.RunStatus,
-			fmtTime(e.StartTime),
-			fmtTime(e.EndTime),
+			entry.RunID,
+			entry.RunName,
+			entry.RunStatus,
+			tools.FmtTime(entry.StartTime),
+			tools.FmtTime(entry.EndTime),
+			entry.TestDuration.String(),
+			fmt.Sprintf("%v", entry.TimedOut),
+			fmt.Sprintf("%d", entry.NumTotalTests),
+			fmt.Sprintf("%d", entry.NumPassedTests),
+			fmt.Sprintf("%d", entry.NumFailedTests),
+			fmt.Sprintf("%.2f", entry.QualityScore),
+			fmt.Sprintf("%.2f", entry.MaintainabilityScore),
+			fmt.Sprintf("%.2f", entry.SecurityScore),
 		})
 	}
 
+	if !hasRows {
+		return "(no entries)\n"
+	}
 	return tb.Build()
+}
+
+func (store *Store) Close() {
+	store.db.Close()
 }
