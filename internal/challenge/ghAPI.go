@@ -38,9 +38,23 @@ func githubGet(url string, downloadingFile bool) (*http.Response, error) {
 		req.Header.Set("Accept", "application/octet-stream")
 	}
 
-	res, err := http.DefaultClient.Do(req)
+	client := &http.Client{
+		CheckRedirect: func(r *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	res, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to send http request: %v\n", err)
+	}
+
+	if res.StatusCode == 302 || res.StatusCode == 301 {
+		location := res.Header.Get("Location")
+		res, err = http.Get(location)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to follow redirect: %v\n", err)
+		}
 	}
 
 	if res.StatusCode == 401 && len(GITHUB_TOKEN) == 0 {
