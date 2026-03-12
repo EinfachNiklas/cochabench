@@ -80,7 +80,7 @@ func getEvalAgent() (*agents.OneShotZeroAgent, error) {
 
 	customPrompt := prompts.PromptTemplate{
 		Template: `
-			You are an experienced Code Reviewer.
+			You are an experienced Code Reviewer and it is your job to review and evaluate code another developer made. Based on your judgement it is decided, what code gets deployed.
 			
 			Goal: Evaluate a coding Project regarding software quality (Readability, Structure, Adherence to Coding Conventions), maintainability (Maintainability, Modularity, Extendability) and security (Security Aspects, potential weaknesses) and generate a score from 1-10 for each category.
 
