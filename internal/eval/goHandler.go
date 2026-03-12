@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -159,27 +160,9 @@ func (h GoHandler) PrepareEnvironment(challengePath string, runID string) (tempD
 	}
 
 	testSrc := filepath.Join(challengePath, "test")
-	testFiles, err := os.ReadDir(testSrc)
-	if err != nil {
+	if err := copyDirMerge(testSrc, srcDst); err != nil {
 		cleanup()
-		return "", nil, fmt.Errorf("Failed to read test directory: %w", err)
-	}
-
-	for _, file := range testFiles {
-		if !file.IsDir() {
-			srcPath := filepath.Join(testSrc, file.Name())
-			var dstPath string
-			dstPath = filepath.Join(srcDst, file.Name())
-			data, readErr := os.ReadFile(srcPath)
-			if readErr != nil {
-				cleanup()
-				return "", nil, fmt.Errorf("Failed to read test file %s: %w", file.Name(), readErr)
-			}
-			if writeErr := os.WriteFile(dstPath, data, 0644); writeErr != nil {
-				cleanup()
-				return "", nil, fmt.Errorf("Failed to write test file %s: %w", file.Name(), writeErr)
-			}
-		}
+		return "", nil, fmt.Errorf("Failed to copy test files: %w", err)
 	}
 
 	goSumSrc := filepath.Join(srcDst, "go.sum")
@@ -202,4 +185,25 @@ func (h GoHandler) PrepareEnvironment(challengePath string, runID string) (tempD
 	}
 
 	return tempDir, cleanup, nil
+}
+
+func copyDirMerge(src, dst string) error {
+	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		targetPath := filepath.Join(dst, relPath)
+		if d.IsDir() {
+			return os.MkdirAll(targetPath, 0755)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(targetPath, data, 0644)
+	})
 }

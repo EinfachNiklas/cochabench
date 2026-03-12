@@ -84,9 +84,25 @@ func getEvalAgent() (*agents.OneShotZeroAgent, error) {
 			
 			Goal: Evaluate a coding Project regarding software quality (Readability, Structure, Adherence to Coding Conventions), maintainability (Maintainability, Modularity, Extendability) and security (Security Aspects, potential weaknesses) and generate a score from 1-10 for each category.
 
-			The test files were already provided ans must not influence your score decision.
+			The test files were already provided and must not influence your score decision.
 
 			The coding Project is located in the directory {{.tmp_dir}}
+
+			{{if .diff}}
+			## Changes Made by the Developer
+			The following unified diff shows the developer's changes from the original template.
+			Focus your evaluation PRIMARILY on the changed/new code shown in this diff.
+			Use the file_reader and directory_lister tools only when you need additional context
+			to understand the changes (e.g., to see how a changed function is used elsewhere).
+
+			{{.diff}}
+
+			IMPORTANT: Base your scores on the quality of the CHANGES shown above,
+			not on the pre-existing template code. Evaluate whether the developer's modifications
+			follow best practices for the given language.
+			{{else}}
+			Explore the project using the directory_lister and file_reader tools to review the code.
+			{{end}}
 
 			You have access to the following tools:
 			{{.tool_descriptions}}
@@ -116,7 +132,7 @@ func getEvalAgent() (*agents.OneShotZeroAgent, error) {
 			{{.agent_scratchpad}}
 		`,
 		TemplateFormat: prompts.TemplateFormatGoTemplate,
-		InputVariables: []string{"tmp_dir", "agent_scratchpad"},
+		InputVariables: []string{"tmp_dir", "diff", "agent_scratchpad"},
 		PartialVariables: map[string]any{
 			"tool_names":        csvFromTools(agentTools, 1),
 			"tool_descriptions": csvFromTools(agentTools, 2),
@@ -141,7 +157,7 @@ func NewEvaluator() *Evaluator {
 	return &Evaluator{}
 }
 
-func runSingleEvaluation(ctx context.Context, cScores chan []float64, cErr chan error, run int, tmpDir string) {
+func runSingleEvaluation(ctx context.Context, cScores chan []float64, cErr chan error, run int, tmpDir string, diff string) {
 	agent, err := getEvalAgent()
 	if err != nil {
 		cErr <- fmt.Errorf("Error on run %d: %v\n", run, err)
@@ -149,7 +165,7 @@ func runSingleEvaluation(ctx context.Context, cScores chan []float64, cErr chan 
 	}
 	executor := agents.NewExecutor(agent, agents.WithMaxIterations(20))
 
-	responses, err := executor.Call(ctx, map[string]any{"tmp_dir": tmpDir}, chains.WithTemperature(0.0))
+	responses, err := executor.Call(ctx, map[string]any{"tmp_dir": tmpDir, "diff": diff}, chains.WithTemperature(0.0))
 	if err != nil {
 		cErr <- fmt.Errorf("Error on run %d: %v\n", run, err)
 		return
@@ -182,7 +198,7 @@ func runSingleEvaluation(ctx context.Context, cScores chan []float64, cErr chan 
 	cScores <- []float64{runResult.Quality, runResult.Maintainability, runResult.Security}
 }
 
-func (evaluator *Evaluator) Evaluate(tmpDir string) (*EvaluatorResult, error) {
+func (evaluator *Evaluator) Evaluate(tmpDir string, diff string) (*EvaluatorResult, error) {
 	fmt.Printf("Starting AI Evaluation (%d runs)...\n", EvaluationRuns)
 
 	var qualitySum, maintainabilitySum, securitySum float64
@@ -194,7 +210,7 @@ func (evaluator *Evaluator) Evaluate(tmpDir string) (*EvaluatorResult, error) {
 	cErrors := make(chan error, EvaluationRuns)
 	for run := 1; run <= EvaluationRuns; run++ {
 		fmt.Printf("Run %d/%d...\n", run, EvaluationRuns)
-		go runSingleEvaluation(ctx, cScores, cErrors, run, tmpDir)
+		go runSingleEvaluation(ctx, cScores, cErrors, run, tmpDir, diff)
 	}
 
 	for range EvaluationRuns {

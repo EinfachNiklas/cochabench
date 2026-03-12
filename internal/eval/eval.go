@@ -75,9 +75,18 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 		runData.MaintainabilityScore = -1
 		runData.SecurityScore = -1
 	} else {
+		srcPath := filepath.Join(dirPath, "src")
+		solutionPath := filepath.Join(dirPath, "solutions", runID)
+
+		diff, err := GenerateDiff(srcPath, solutionPath)
+		if err != nil {
+			log.Printf("Warning: could not generate diff, falling back to full evaluation: %v", err)
+			diff = ""
+		}
+
 		evaluator := agent.NewEvaluator()
 
-		aiEvaluation, err := evaluator.Evaluate(tempDir)
+		aiEvaluation, err := evaluator.Evaluate(tempDir, diff)
 		if err != nil {
 			return err
 		}
