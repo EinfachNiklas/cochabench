@@ -65,37 +65,37 @@ func githubGet(url string, downloadingFile bool) (*http.Response, error) {
 	return res, nil
 }
 
-func fetchGithubAPIUrl(filename string) (string, error) {
+func fetchGithubAPIUrl(filename string) (string, string, error) {
 	cfg, err := config.GetConfig()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	releaseURL, err := url.JoinPath(cfg.CHALLENGE_SERVER, "/releases/latest")
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	res, err := githubGet(releaseURL, false)
 	if err != nil {
-		return "", fmt.Errorf("Could not fetch Github-Tag of file %s: %v\n", filename, err)
+		return "", "", fmt.Errorf("Could not fetch Github-Tag of file %s: %v\n", filename, err)
 	}
 	if res.StatusCode != 200 {
-		return "", fmt.Errorf("Could not fetch Github-Tag of file %s: The http response was %s\nIf the repository you are trying to access is private, you may need to provide a Github Token via the environment variable GITHUB_TOKEN\n", filename, res.Status)
+		return "", "", fmt.Errorf("Could not fetch Github-Tag of file %s: The http response was %s\nIf the repository you are trying to access is private, you may need to provide a Github Token via the environment variable GITHUB_TOKEN\n", filename, res.Status)
 	}
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return "", fmt.Errorf("Could not read response body: %v\n", err)
+		return "", "", fmt.Errorf("Could not read response body: %v\n", err)
 	}
 
 	var release ghRelease
 	if err := json.Unmarshal(body, &release); err != nil {
-		return "", fmt.Errorf("Could not parse release JSON: %v\n", err)
+		return "", "", fmt.Errorf("Could not parse release JSON: %v\n", err)
 	}
 
 	for _, asset := range release.Assets {
 		if asset.Name == filename {
-			return asset.URL, nil
+			return asset.URL, release.TagName, nil
 		}
 	}
-	return "", fmt.Errorf("Asset %s not found in latest release %s", filename, release.TagName)
+	return "", "", fmt.Errorf("Asset %s not found in latest release %s", filename, release.TagName)
 }
