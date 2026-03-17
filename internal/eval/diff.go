@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	MaxDiffChars     = 30000
-	DiffContextLines = 3
+	MaxTotalDiffChars   = 30000
+	MaxPerFileDiffChars = 5000
+	DiffContextLines    = 3
 )
 
 // GenerateDiff produces a unified diff between the original template (srcDir)
@@ -40,7 +41,7 @@ func GenerateDiff(srcDir, solutionDir string) (string, error) {
 	sortedPaths := sortedKeys(allPaths)
 
 	var result strings.Builder
-	for _, relPath := range sortedPaths {
+	for i, relPath := range sortedPaths {
 		srcContent := readFileOrEmpty(srcDir, relPath)
 		solContent := readFileOrEmpty(solutionDir, relPath)
 
@@ -74,21 +75,21 @@ func GenerateDiff(srcDir, solutionDir string) (string, error) {
 			return "", fmt.Errorf("failed to generate diff for %s: %w", relPath, err)
 		}
 
+		if len(text) > MaxPerFileDiffChars {
+			text = text[:MaxPerFileDiffChars] +
+				fmt.Sprintf("\n[... %s truncated — use file_reader tool for full content]\n", relPath)
+		}
+
+		if result.Len()+len(text) > MaxTotalDiffChars {
+			fmt.Fprintf(&result, "\n[DIFF TRUNCATED — %d more file(s) omitted. Use file_reader tool to inspect remaining files.]\n",
+				len(sortedPaths)-i)
+			break
+		}
+
 		result.WriteString(text)
 	}
 
-	diffStr := result.String()
-
-	if len(diffStr) > MaxDiffChars {
-		totalLen := len(diffStr)
-		diffStr = diffStr[:MaxDiffChars] +
-			fmt.Sprintf("\n\n[DIFF TRUNCATED - showing first %d of %d characters. Use file_reader tool to inspect full files.]\n",
-				MaxDiffChars, totalLen)
-	}
-
-	fmt.Println(diffStr)
-
-	return diffStr, nil
+	return result.String(), nil
 }
 
 func collectFiles(root string) (map[string]bool, error) {
