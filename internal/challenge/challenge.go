@@ -29,7 +29,7 @@ type Manifest struct {
 	Challenges map[string]Challenge
 }
 
-func (m Manifest) toString() string {
+func (m Manifest) toString(releaseTag string) string {
 	if len(m.Challenges) == 0 {
 		return "No challenges available."
 	}
@@ -41,6 +41,9 @@ func (m Manifest) toString() string {
 	}
 	sort.Strings(ids)
 
+	var b strings.Builder
+	fmt.Fprintf(&b, "Release: %s\n\n", releaseTag)
+
 	// Build table using shared utility
 	tb := tools.NewTableBuilder([]string{"ID", "Title", "Language", "Difficulty"})
 
@@ -49,42 +52,43 @@ func (m Manifest) toString() string {
 		tb.AddRow([]string{id, c.Title, c.Language, c.Difficulty})
 	}
 
-	return tb.Build()
+	b.WriteString(tb.Build())
+	return b.String()
 }
 
-func downloadManifest() (*Manifest, error) {
+func downloadManifest() (*Manifest, string, error) {
 	var manifest Manifest
 	fmt.Println("Fetching Manifest")
-	manifestUrl, err := fetchGithubAPIUrl("manifest.json")
+	manifestUrl, tag, err := fetchGithubAPIUrl("manifest.json")
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	resp, err := githubGet(manifestUrl, true)
 	if err != nil {
-		return nil, errors.Join(errors.New("Cannot download challenge manifest"), err)
+		return nil, "", errors.Join(errors.New("Cannot download challenge manifest"), err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Error when downloading challenge manifest: HTTP %d %s", resp.StatusCode, resp.Status)
+		return nil, "", fmt.Errorf("Error when downloading challenge manifest: HTTP %d %s", resp.StatusCode, resp.Status)
 	}
 
 	d, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, errors.Join(errors.New("Error when reading challenge manifest"), err)
+		return nil, "", errors.Join(errors.New("Error when reading challenge manifest"), err)
 	}
 	err = json.Unmarshal(d, &manifest)
 	if err != nil {
-		return nil, errors.Join(errors.New("Bad manifest format"), err)
+		return nil, "", errors.Join(errors.New("Bad manifest format"), err)
 	}
-	return &manifest, nil
+	return &manifest, tag, nil
 
 }
 
 func downloadChallenge(filename string, path string) error {
 	fmt.Printf("Fetching Challenge: %s\n", filename)
 
-	challengeUrl, err := fetchGithubAPIUrl(filename)
+	challengeUrl, _, err := fetchGithubAPIUrl(filename)
 	if err != nil {
 		return err
 	}
@@ -134,11 +138,11 @@ func downloadChallenge(filename string, path string) error {
 }
 
 func List(ctx context.Context, cmd *cli.Command) error {
-	manifest, err := downloadManifest()
+	manifest, tag, err := downloadManifest()
 	if err != nil {
 		return errors.Join(errors.New("Could not download manifest"), err)
 	}
-	fmt.Println(manifest.toString())
+	fmt.Println(manifest.toString(tag))
 	return nil
 }
 
@@ -151,7 +155,7 @@ func Get(ctx context.Context, cmd *cli.Command) error {
 	if len(id) == 0 {
 		return errors.New("No challenge id provided")
 	}
-	manifest, err := downloadManifest()
+	manifest, _, err := downloadManifest()
 	if err != nil {
 		return err
 	}
