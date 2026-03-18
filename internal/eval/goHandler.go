@@ -85,6 +85,11 @@ func (h GoHandler) parseGoTestJSON(data []byte, result *TestResult) error {
 			continue
 		}
 
+		// Skip package-level events (empty Test field)
+		if event.Test == "" {
+			continue
+		}
+
 		switch event.Action {
 		case "pass":
 			testResults[event.Test] = "pass"
@@ -96,10 +101,7 @@ func (h GoHandler) parseGoTestJSON(data []byte, result *TestResult) error {
 		case "skip":
 			testResults[event.Test] = "skip"
 		case "output":
-
-			if event.Test != "" {
-				testOutputs[event.Test] += event.Output
-			}
+			testOutputs[event.Test] += event.Output
 		}
 	}
 
