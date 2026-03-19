@@ -1,5 +1,5 @@
 name: Run Tests
-run-name: Run Tests - {{ github.event.pull_request.title || github.event.head_commit.message || 'manual' }}
+run-name: Run Tests - ${{ github.event.pull_request.title || github.event.head_commit.message || 'manual' }}
 on: 
   push:
     branches:
