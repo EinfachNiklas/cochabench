@@ -7,6 +7,8 @@
 
 This project is licensed under the GNU GPL v3.0. See [LICENSE](LICENSE).
 
+This project is licensed under the GNU GPL v3.0. See [LICENSE](LICENSE).
+
 ## Features
 
 - **Multi-Language Support**: Challenges available in JavaScript, Python, and Go
@@ -207,6 +209,8 @@ CochaBench executes challenge code, test suites, and package installation comman
 
 CochaBench does not currently provide sandboxing or container isolation for evaluation.
 
+For vulnerability reporting and additional security guidance, see [SECURITY.md](SECURITY.md).
+
 ## Development
 
 ### Running Tests
@@ -236,6 +240,8 @@ cochabench/
 ## Contributing
 
 Contributions are welcome! Please feel free to submit issues and pull requests.
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feat/amazing-feature`)
