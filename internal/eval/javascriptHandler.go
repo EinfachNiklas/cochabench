@@ -59,8 +59,6 @@ func (h JavascriptHandler) ExecuteTests(ctx context.Context, tempDir string) (*T
 
 // parseJestJSON parses Jest JSON output
 func (h JavascriptHandler) parseJestJSON(data []byte, result *TestResult) error {
-	// Jest outputs JSON that contains "numTotalTests"
-	// Find this marker to locate the actual JSON report
 	marker := []byte(`"numTotalTests"`)
 	markerIndex := bytes.Index(data, marker)
 
@@ -81,8 +79,12 @@ func (h JavascriptHandler) parseJestJSON(data []byte, result *TestResult) error 
 		return fmt.Errorf("no JSON start found before numTotalTests")
 	}
 
-	// Use data from the '{' onwards
-	jsonData := data[jsonStart:]
+	jsonEnd := findJSONEnd(data, jsonStart)
+	if jsonEnd == -1 {
+		return fmt.Errorf("no complete JSON object found in test output")
+	}
+
+	jsonData := data[jsonStart : jsonEnd+1]
 
 	var jestReport struct {
 		NumTotalTests   int `json:"numTotalTests"`
@@ -124,6 +126,45 @@ func (h JavascriptHandler) parseJestJSON(data []byte, result *TestResult) error 
 	}
 
 	return nil
+}
+
+func findJSONEnd(data []byte, start int) int {
+	depth := 0
+	inString := false
+	escaped := false
+
+	for i := start; i < len(data); i++ {
+		ch := data[i]
+
+		if inString {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+				continue
+			}
+			if ch == '"' {
+				inString = false
+			}
+			continue
+		}
+
+		switch ch {
+		case '"':
+			inString = true
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return i
+			}
+		}
+	}
+
+	return -1
 }
 
 func (h JavascriptHandler) PrepareEnvironment(challengePath string, runID string) (tempDir string, cleanup func(), err error) {

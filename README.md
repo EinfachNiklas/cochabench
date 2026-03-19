@@ -5,6 +5,8 @@
 
 **CochaBench** is a comprehensive coding challenge benchmark suite designed to evaluate and compare the performance of developers and AI coding agents across multiple programming languages.
 
+This project is licensed under the GNU GPL v3.0. See [LICENSE](LICENSE).
+
 ## Features
 
 - **Multi-Language Support**: Challenges available in JavaScript, Python, and Go
@@ -22,6 +24,9 @@
 
 - Go 1.25.5 or higher
 - Git
+- For JavaScript challenge evaluation: `npm`
+- For Python challenge evaluation: `python3` or `python`, `venv`, and `pip`
+- For AI-assisted evaluation: an Anthropic-compatible API key in `LLM_API_KEY`
 
 ### Build from Source
 
@@ -73,6 +78,12 @@ cd <challenge-directory>
 cochabench run init --name "my-first-attempt"
 ```
 
+Each challenge directory is expected to contain:
+
+- `src/` with the starter implementation
+- `test/` with the benchmark tests
+- `challenge.config.json` with challenge metadata
+
 ### 5. Start Working
 
 ```bash
@@ -80,6 +91,7 @@ cochabench run start --id <run-id>
 ```
 
 Work on your solution in the `solutions/<run-id>/` directory.
+CochaBench also creates a local `cochabench.db` SQLite database in the challenge directory to persist run metadata and evaluation results.
 
 ### 6. Stop the Run
 
@@ -162,20 +174,38 @@ CochaBench provides comprehensive evaluation metrics:
 
 - **Test Results**: Total, passed, and failed test counts
 - **Execution Time**: Duration of test execution
-- **Quality Score**: AI-evaluated code quality (0-100)
-- **Maintainability Score**: AI-evaluated code maintainability (0-100)
-- **Security Score**: AI-evaluated code security (0-100)
+- **Quality Score**: AI-evaluated code quality (1-10, averaged across multiple runs)
+- **Maintainability Score**: AI-evaluated code maintainability (1-10, averaged across multiple runs)
+- **Security Score**: AI-evaluated code security (1-10, averaged across multiple runs)
 
 ### AI support
 
 Currently, only Anthropic Models (Claude) are supported.
+
+The generated config file exposes the following keys:
+
+- `LLM_PROVIDER`
+- `LLM_BASE_PATH`
+- `LLM_MODEL`
+- `CHALLENGE_SERVER`
 
 ## Environment Variables
 
 CochaBench supports the following environment variables:
 
 - `GITHUB_TOKEN`: GitHub personal access token for API requests (optional, required to connect to private challenge server repos)
-- `LLM_API_KEY`: LLM API KEY for ai evaluation
+- `LLM_API_KEY`: API key used for AI evaluation
+
+## Security Notice
+
+CochaBench executes challenge code, test suites, and package installation commands locally on your machine.
+
+- Do not run untrusted challenges or untrusted solution code without additional isolation.
+- JavaScript evaluation runs `npm install` and `npm test`.
+- Python evaluation creates a virtual environment and installs packages with `pip`.
+- Go evaluation may download modules with `go mod download` and `go mod tidy`.
+
+CochaBench does not currently provide sandboxing or container isolation for evaluation.
 
 ## Development
 
@@ -215,7 +245,7 @@ Contributions are welcome! Please feel free to submit issues and pull requests.
 
 ## License
 
-This project is open source. Please check the repository for license details.
+This project is licensed under the GNU GPL v3.0. See [LICENSE](LICENSE) for the full license text.
 
 ## Acknowledgments
 
