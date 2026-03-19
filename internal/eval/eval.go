@@ -32,11 +32,11 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	err = tools.ValidateDirStructure(cmd.String("path"))
+	err = tools.ValidateDirStructure(dirPath)
 	if err != nil {
 		return err
 	}
-	challengeConfig, err := tools.LoadChallengeConfig(filepath.Join(cmd.String("path"), "challenge.config.json"))
+	challengeConfig, err := tools.LoadChallengeConfig(filepath.Join(dirPath, "challenge.config.json"))
 	if err != nil {
 		return err
 	}
