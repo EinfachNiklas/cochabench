@@ -13,6 +13,7 @@ import (
 	"github.com/tmc/langchaingo/chains"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/anthropic"
+	"github.com/tmc/langchaingo/llms/openai"
 	"github.com/tmc/langchaingo/prompts"
 	"github.com/tmc/langchaingo/tools"
 )
@@ -61,12 +62,24 @@ func getLLM() (*llms.Model, error) {
 			anthropic.WithToken(env.LLM_API_KEY),
 			anthropic.WithModel(c.LLM_MODEL),
 		}
-		if c.LLM_BASE_PATH != "" {
+		if len(c.LLM_BASE_PATH) == 0 {
 			opts = append(opts, anthropic.WithBaseURL(c.LLM_BASE_PATH))
 		}
 		llm, err = anthropic.New(opts...)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to setup Anthropic %s: %v\n", c.LLM_MODEL, err)
+		}
+	case "openai":
+		opts := []openai.Option{
+			openai.WithToken(env.LLM_API_KEY),
+			openai.WithModel(c.LLM_MODEL),
+		}
+		if len(c.LLM_BASE_PATH) == 0 {
+			opts = append(opts, openai.WithBaseURL(c.LLM_BASE_PATH))
+		}
+		llm, err = openai.New(opts...)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to setup Openai %s: %v\n", c.LLM_MODEL, err)
 		}
 	default:
 		return nil, fmt.Errorf("LLM Provider %s is not supported", c.LLM_PROVIDER)
