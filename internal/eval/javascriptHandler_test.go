@@ -1,6 +1,8 @@
 package eval
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -74,5 +76,64 @@ func TestParseJestJSON(t *testing.T) {
 				t.Errorf("len(Errors) = %d, want %d", len(result.Errors), tt.wantErrCount)
 			}
 		})
+	}
+}
+
+func TestJavascriptHandler_PrepareEnvironment(t *testing.T) {
+	runID := "test-run-js"
+
+	challengeDir := t.TempDir()
+	solutionDir := filepath.Join(challengeDir, "solutions", runID)
+	os.MkdirAll(filepath.Join(solutionDir, "src"), 0755)
+	os.WriteFile(filepath.Join(solutionDir, "src", "index.js"), []byte("module.exports = {};\n"), 0644)
+
+	testDir := filepath.Join(challengeDir, "test")
+	os.MkdirAll(testDir, 0755)
+	os.WriteFile(filepath.Join(testDir, "index.test.js"), []byte("test('ok', () => {});\n"), 0644)
+
+	os.WriteFile(filepath.Join(challengeDir, "package.json"), []byte(`{"name":"test"}`), 0644)
+
+	h := JavascriptHandler{}
+	tempDir, cleanup, err := h.PrepareEnvironment(challengeDir, runID)
+	if err != nil {
+		t.Fatalf("PrepareEnvironment failed: %v", err)
+	}
+	defer cleanup()
+
+	// test files should be in tempDir/test
+	if _, err := os.Stat(filepath.Join(tempDir, "test", "index.test.js")); os.IsNotExist(err) {
+		t.Error("expected index.test.js in tempDir/test")
+	}
+
+	// solution files should be in tempDir
+	if _, err := os.Stat(filepath.Join(tempDir, "src", "index.js")); os.IsNotExist(err) {
+		t.Error("expected src/index.js in tempDir")
+	}
+
+	// package.json should be copied
+	if _, err := os.Stat(filepath.Join(tempDir, "package.json")); os.IsNotExist(err) {
+		t.Error("expected package.json in tempDir")
+	}
+}
+
+func TestJavascriptHandler_PrepareEnvironment_Cleanup(t *testing.T) {
+	runID := "test-cleanup-js"
+
+	challengeDir := t.TempDir()
+	solutionDir := filepath.Join(challengeDir, "solutions", runID)
+	os.MkdirAll(solutionDir, 0755)
+	os.WriteFile(filepath.Join(solutionDir, "index.js"), []byte(""), 0644)
+	os.MkdirAll(filepath.Join(challengeDir, "test"), 0755)
+
+	h := JavascriptHandler{}
+	tempDir, cleanup, err := h.PrepareEnvironment(challengeDir, runID)
+	if err != nil {
+		t.Fatalf("PrepareEnvironment failed: %v", err)
+	}
+
+	cleanup()
+
+	if _, err := os.Stat(tempDir); !os.IsNotExist(err) {
+		t.Errorf("expected tempDir %q to be removed after cleanup", tempDir)
 	}
 }

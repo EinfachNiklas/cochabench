@@ -277,7 +277,7 @@ func TestStop(t *testing.T) {
 		wantStatus string
 	}{
 		{"FromRunning", "R", false, "", "F"},
-		{"AlreadyFinished", "F", true, "finnished", ""},
+		{"AlreadyFinished", "F", true, "finished", ""},
 		{"NotRunningInit", "I", true, "not running", ""},
 		{"NotRunningCanceled", "C", true, "not running", ""},
 		{"NotFound", "", true, "does not exist", ""},
@@ -331,7 +331,7 @@ func TestCancel(t *testing.T) {
 		wantStatus string
 	}{
 		{"FromRunning", "R", false, "", "C"},
-		{"AlreadyFinished", "F", true, "finnished", ""},
+		{"AlreadyFinished", "F", true, "finished", ""},
 		{"NotRunningInit", "I", true, "not running", ""},
 		{"NotRunningCanceled", "C", true, "not running", ""},
 		{"NotFound", "", true, "does not exist", ""},

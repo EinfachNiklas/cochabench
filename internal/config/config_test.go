@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -48,15 +49,18 @@ func TestConfigFields(t *testing.T) {
 }
 
 func TestGetConfigPath(t *testing.T) {
+	userDir, err := os.UserConfigDir()
+	if err != nil {
+		t.Skip("os.UserConfigDir() not available on this system")
+	}
+
 	path, err := getConfigPath()
 	if err != nil {
 		t.Fatalf("getConfigPath() error: %v", err)
 	}
 
-	if filepath.Base(path) != "config.json" {
-		t.Errorf("expected filename config.json, got %q", filepath.Base(path))
-	}
-	if filepath.Base(filepath.Dir(path)) != "cochabench" {
-		t.Errorf("expected parent dir cochabench, got %q", filepath.Base(filepath.Dir(path)))
+	want := filepath.Join(userDir, "cochabench", "config.json")
+	if path != want {
+		t.Errorf("getConfigPath() = %q, want %q", path, want)
 	}
 }

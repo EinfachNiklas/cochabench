@@ -209,7 +209,7 @@ func TestLoadChallengeConfig(t *testing.T) {
 			content:   `{bad json`,
 			writeFile: true,
 			wantErr:   true,
-			errSubstr: "Malfomed",
+			errSubstr: "Malformed",
 		},
 		{
 			name:      "FileNotFound",

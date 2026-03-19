@@ -39,10 +39,7 @@ func TestCreateHandler(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			typeName := strings.TrimPrefix(strings.TrimPrefix(
-				strings.Replace(strings.Replace(
-					typeString(handler), "eval.", "", 1), "*eval.", "", 1),
-				""), "")
+			typeName := typeString(handler)
 			if typeName != tt.wantType {
 				t.Errorf("createHandler(%q) type = %q, want %q", tt.input, typeName, tt.wantType)
 			}
@@ -51,15 +48,7 @@ func TestCreateHandler(t *testing.T) {
 }
 
 func typeString(h LanguageHandler) string {
-	return strings.TrimPrefix(strings.Replace(
-		strings.Replace(
-			stringOfType(h), "eval.", "", 1),
-		"*eval.", "", 1),
-		"")
-}
-
-func stringOfType(v interface{}) string {
-	switch v.(type) {
+	switch h.(type) {
 	case GoHandler:
 		return "GoHandler"
 	case JavascriptHandler:

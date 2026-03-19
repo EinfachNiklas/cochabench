@@ -1,6 +1,8 @@
 package eval
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -83,5 +85,81 @@ func TestParseGoTestJSON(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestGoHandler_PrepareEnvironment(t *testing.T) {
+	runID := "test-run-001"
+
+	// Build a fake challenge directory
+	challengeDir := t.TempDir()
+	solutionDir := filepath.Join(challengeDir, "solutions", runID)
+	os.MkdirAll(solutionDir, 0755)
+	os.WriteFile(filepath.Join(solutionDir, "go.mod"), []byte("module example\n\ngo 1.21\n"), 0644)
+	os.WriteFile(filepath.Join(solutionDir, "main.go"), []byte("package main\n"), 0644)
+	os.WriteFile(filepath.Join(solutionDir, "go.sum"), []byte("h1:abc\n"), 0644)
+
+	testDir := filepath.Join(challengeDir, "test")
+	os.MkdirAll(testDir, 0755)
+	os.WriteFile(filepath.Join(testDir, "main_test.go"), []byte("package main\n"), 0644)
+
+	h := GoHandler{}
+	tempDir, cleanup, err := h.PrepareEnvironment(challengeDir, runID)
+	if err != nil {
+		t.Fatalf("PrepareEnvironment failed: %v", err)
+	}
+	defer cleanup()
+
+	// go.mod should be moved to tempDir root
+	if _, err := os.Stat(filepath.Join(tempDir, "go.mod")); os.IsNotExist(err) {
+		t.Error("expected go.mod at tempDir root")
+	}
+
+	// main.go should be in tempDir/src
+	if _, err := os.Stat(filepath.Join(tempDir, "src", "main.go")); os.IsNotExist(err) {
+		t.Error("expected main.go in tempDir/src")
+	}
+
+	// go.mod should NOT remain in src/
+	if _, err := os.Stat(filepath.Join(tempDir, "src", "go.mod")); !os.IsNotExist(err) {
+		t.Error("expected go.mod to be removed from tempDir/src")
+	}
+
+	// test files should be merged into src/
+	if _, err := os.Stat(filepath.Join(tempDir, "src", "main_test.go")); os.IsNotExist(err) {
+		t.Error("expected main_test.go in tempDir/src (merged from test/)")
+	}
+
+	// go.sum should be moved to tempDir root
+	if _, err := os.Stat(filepath.Join(tempDir, "go.sum")); os.IsNotExist(err) {
+		t.Error("expected go.sum at tempDir root")
+	}
+
+	// go.sum should NOT remain in src/
+	if _, err := os.Stat(filepath.Join(tempDir, "src", "go.sum")); !os.IsNotExist(err) {
+		t.Error("expected go.sum to be removed from tempDir/src")
+	}
+}
+
+func TestGoHandler_PrepareEnvironment_Cleanup(t *testing.T) {
+	runID := "test-cleanup"
+
+	challengeDir := t.TempDir()
+	solutionDir := filepath.Join(challengeDir, "solutions", runID)
+	os.MkdirAll(solutionDir, 0755)
+	os.WriteFile(filepath.Join(solutionDir, "go.mod"), []byte("module example\n\ngo 1.21\n"), 0644)
+	os.WriteFile(filepath.Join(solutionDir, "main.go"), []byte("package main\n"), 0644)
+	os.MkdirAll(filepath.Join(challengeDir, "test"), 0755)
+
+	h := GoHandler{}
+	tempDir, cleanup, err := h.PrepareEnvironment(challengeDir, runID)
+	if err != nil {
+		t.Fatalf("PrepareEnvironment failed: %v", err)
+	}
+
+	cleanup()
+
+	if _, err := os.Stat(tempDir); !os.IsNotExist(err) {
+		t.Errorf("expected tempDir %q to be removed after cleanup", tempDir)
 	}
 }

@@ -125,7 +125,7 @@ func Stop(ctx context.Context, cmd *cli.Command) error {
 		entry.EndTime = time.Now()
 		entry.RunStatus = "F"
 	case "F":
-		return errors.New("Run " + entry.RunName + "[" + id + "] is already finnished\n")
+		return errors.New("Run " + entry.RunName + "[" + id + "] is already finished\n")
 	case "I", "C":
 		return errors.New("Run " + entry.RunName + "[" + id + "] is not running\n")
 	}
@@ -163,7 +163,7 @@ func Cancel(ctx context.Context, cmd *cli.Command) error {
 	case "R":
 		entry.RunStatus = "C"
 	case "F":
-		return errors.New("Run " + entry.RunName + "[" + id + "] is already finnished\n")
+		return errors.New("Run " + entry.RunName + "[" + id + "] is already finished\n")
 	case "I", "C":
 		return errors.New("Run " + entry.RunName + "[" + id + "] is not running\n")
 	}
