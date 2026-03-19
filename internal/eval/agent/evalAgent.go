@@ -18,10 +18,6 @@ import (
 	"github.com/tmc/langchaingo/tools"
 )
 
-const (
-	EvaluationRuns = 3
-)
-
 type Evaluator struct{}
 
 type EvaluatorResult struct {
@@ -240,22 +236,22 @@ func runSingleEvaluation(ctx context.Context, cScores chan []float64, cErr chan 
 	cScores <- []float64{runResult.Quality, runResult.Maintainability, runResult.Security}
 }
 
-func (evaluator *Evaluator) Evaluate(tmpDir string, diff string) (*EvaluatorResult, error) {
-	fmt.Printf("Starting AI Evaluation (%d runs)...\n", EvaluationRuns)
+func (evaluator *Evaluator) Evaluate(tmpDir string, diff string, numEvalRuns int) (*EvaluatorResult, error) {
+	fmt.Printf("Starting AI Evaluation (%d runs)...\n", numEvalRuns)
 
 	var qualitySum, maintainabilitySum, securitySum float64
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cScores := make(chan []float64, EvaluationRuns)
-	cErrors := make(chan error, EvaluationRuns)
-	for run := 1; run <= EvaluationRuns; run++ {
-		fmt.Printf("Run %d/%d...\n", run, EvaluationRuns)
+	cScores := make(chan []float64, numEvalRuns)
+	cErrors := make(chan error, numEvalRuns)
+	for run := 1; run <= numEvalRuns; run++ {
+		fmt.Printf("Run %d/%d...\n", run, numEvalRuns)
 		go runSingleEvaluation(ctx, cScores, cErrors, run, tmpDir, diff)
 	}
 
-	for range EvaluationRuns {
+	for range numEvalRuns {
 		select {
 		case runScores := <-cScores:
 			qualitySum += runScores[0]
@@ -267,9 +263,9 @@ func (evaluator *Evaluator) Evaluate(tmpDir string, diff string) (*EvaluatorResu
 		}
 	}
 	avgResult := &EvaluatorResult{
-		Quality:         qualitySum / float64(EvaluationRuns),
-		Maintainability: maintainabilitySum / float64(EvaluationRuns),
-		Security:        securitySum / float64(EvaluationRuns),
+		Quality:         qualitySum / float64(numEvalRuns),
+		Maintainability: maintainabilitySum / float64(numEvalRuns),
+		Security:        securitySum / float64(numEvalRuns),
 	}
 
 	fmt.Printf("AI Evaluation Result: Quality=%.2f, Maintainability=%.2f, Security=%.2f\n",
