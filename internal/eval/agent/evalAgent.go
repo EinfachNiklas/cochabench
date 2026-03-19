@@ -13,6 +13,7 @@ import (
 	"github.com/tmc/langchaingo/chains"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/anthropic"
+	"github.com/tmc/langchaingo/llms/googleai"
 	"github.com/tmc/langchaingo/llms/openai"
 	"github.com/tmc/langchaingo/prompts"
 	"github.com/tmc/langchaingo/tools"
@@ -74,6 +75,18 @@ func getLLM() (*llms.Model, error) {
 			opts = append(opts, openai.WithBaseURL(c.LLM_BASE_PATH))
 		}
 		llm, err = openai.New(opts...)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to setup Openai %s: %v\n", c.LLM_MODEL, err)
+		}
+	case "google":
+		opts := []googleai.Option{
+			googleai.WithAPIKey(env.LLM_API_KEY),
+			googleai.WithDefaultModel(c.LLM_MODEL),
+		}
+		if len(c.LLM_BASE_PATH) == 0 {
+			opts = append(opts, googleai.WithCloudLocation(c.LLM_BASE_PATH))
+		}
+		llm, err = googleai.New(context.Background(), opts...)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to setup Openai %s: %v\n", c.LLM_MODEL, err)
 		}
