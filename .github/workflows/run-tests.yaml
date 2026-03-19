@@ -1,0 +1,20 @@
+name: Run Tests
+run-name: Run Tests - {{ github.event.pull_request.title || github.event.head_commit.message || 'manual' }}
+on: 
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+jobs:
+  Run-Go-Tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v5
+      - name: Setup Golang
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+      - name: Execute Tests
+        run: go test ./...

@@ -142,12 +142,11 @@ func (h JavascriptHandler) PrepareEnvironment(challengePath string, runID string
 		return "", cleanup, fmt.Errorf("Failed to copy test files to temp dir: %w", err)
 	}
 
-	err = os.CopyFS(filepath.Join(tempDir, "src"), os.DirFS(filepath.Join(challengePath, "solutions", runID)))
+	err = os.CopyFS(tempDir, os.DirFS(filepath.Join(challengePath, "solutions", runID)))
 	if err != nil {
 		return "", cleanup, fmt.Errorf("Failed to copy solution files to temp dir: %w", err)
 	}
 
-	err = os.CopyFS(filepath.Join(tempDir, ""), os.DirFS(filepath.Join(challengePath, "solutions", runID)))
 	packageJSONSrc := filepath.Join(challengePath, "package.json")
 	_, statErr := os.Stat(packageJSONSrc)
 	if statErr == nil {

@@ -140,7 +140,7 @@ func LoadChallengeConfig(path string) (*ChallengeConfig, error) {
 	}
 	err = json.Unmarshal(data, &config)
 	if err != nil {
-		return nil, errors.New("Malfomed configuration in " + path)
+		return nil, errors.New("Malformed configuration in " + path)
 	}
 	return &config, nil
 }
