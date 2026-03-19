@@ -28,7 +28,7 @@ This project is licensed under the GNU GPL v3.0. See [LICENSE](LICENSE).
 - Git
 - For JavaScript challenge evaluation: `npm`
 - For Python challenge evaluation: `python3` or `python`, `venv`, and `pip`
-- For AI-assisted evaluation: an Anthropic-compatible API key in `LLM_API_KEY`
+- For AI-assisted evaluation: an API key in `LLM_API_KEY`
 
 ### Build from Source
 
@@ -182,7 +182,7 @@ CochaBench provides comprehensive evaluation metrics:
 
 ### AI support
 
-Currently, only Anthropic Models (Claude) are supported.
+Currently, only Anthropic (Claude), OpenAI (ChatGPT, Codex) and Google (Gemini) are supported.
 
 The generated config file exposes the following keys:
 
