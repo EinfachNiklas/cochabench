@@ -65,8 +65,10 @@ func githubGet(url string, downloadingFile bool) (*http.Response, error) {
 	return res, nil
 }
 
+var getConfig = config.GetConfig
+
 func fetchGithubAPIUrl(filename string) (string, string, error) {
-	cfg, err := config.GetConfig()
+	cfg, err := getConfig()
 	if err != nil {
 		return "", "", err
 	}
