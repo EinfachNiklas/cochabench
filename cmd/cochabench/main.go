@@ -123,6 +123,14 @@ func main() {
 						Name:   "get",
 						Usage:  "Downloads a set challenge",
 						Action: challenges.Get,
+						Commands: []*cli.Command{
+							{
+								Name:    "all",
+								Usage:   "Downloads all challenges",
+								Aliases: []string{"a"},
+								Action:  challenges.GetAll,
+							},
+						},
 					},
 				},
 			},

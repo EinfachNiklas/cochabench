@@ -173,3 +173,23 @@ func Get(ctx context.Context, cmd *cli.Command) error {
 	fmt.Printf("Successfully downloaded challenge %s\n", id)
 	return nil
 }
+
+func GetAll(ctx context.Context, cmd *cli.Command) error {
+	dirPath, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("Could not download challenges. Could not get working directory: %v\n", err)
+	}
+
+	manifest, _, err := downloadManifest()
+	if err != nil {
+		return err
+	}
+	for _, challenge := range manifest.Challenges {
+		err = downloadChallenge(challenge.Filename, dirPath)
+		if err != nil {
+			return fmt.Errorf("Downloads incomplete. Could not download challenge %s: %v\n", challenge, err)
+		}
+	}
+	fmt.Println("Successfully downloaded all challenges")
+	return nil
+}
