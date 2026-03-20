@@ -5,9 +5,6 @@
 
 **CochaBench** is a comprehensive coding challenge benchmark suite designed to evaluate and compare the performance of developers and AI coding agents across multiple programming languages.
 
-This project is licensed under the GNU GPL v3.0. See [LICENSE](LICENSE).
-
-This project is licensed under the GNU GPL v3.0. See [LICENSE](LICENSE).
 
 ## Features
 
