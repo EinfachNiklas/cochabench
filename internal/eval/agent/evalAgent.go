@@ -13,12 +13,10 @@ import (
 	"github.com/tmc/langchaingo/chains"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/anthropic"
+	"github.com/tmc/langchaingo/llms/googleai"
+	"github.com/tmc/langchaingo/llms/openai"
 	"github.com/tmc/langchaingo/prompts"
 	"github.com/tmc/langchaingo/tools"
-)
-
-const (
-	EvaluationRuns = 3
 )
 
 type Evaluator struct{}
@@ -61,12 +59,36 @@ func getLLM() (*llms.Model, error) {
 			anthropic.WithToken(env.LLM_API_KEY),
 			anthropic.WithModel(c.LLM_MODEL),
 		}
-		if c.LLM_BASE_PATH != "" {
+		if len(c.LLM_BASE_PATH) == 0 {
 			opts = append(opts, anthropic.WithBaseURL(c.LLM_BASE_PATH))
 		}
 		llm, err = anthropic.New(opts...)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to setup Anthropic %s: %v\n", c.LLM_MODEL, err)
+		}
+	case "openai":
+		opts := []openai.Option{
+			openai.WithToken(env.LLM_API_KEY),
+			openai.WithModel(c.LLM_MODEL),
+		}
+		if len(c.LLM_BASE_PATH) == 0 {
+			opts = append(opts, openai.WithBaseURL(c.LLM_BASE_PATH))
+		}
+		llm, err = openai.New(opts...)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to setup Openai %s: %v\n", c.LLM_MODEL, err)
+		}
+	case "google":
+		opts := []googleai.Option{
+			googleai.WithAPIKey(env.LLM_API_KEY),
+			googleai.WithDefaultModel(c.LLM_MODEL),
+		}
+		if len(c.LLM_BASE_PATH) == 0 {
+			opts = append(opts, googleai.WithCloudLocation(c.LLM_BASE_PATH))
+		}
+		llm, err = googleai.New(context.Background(), opts...)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to setup Openai %s: %v\n", c.LLM_MODEL, err)
 		}
 	default:
 		return nil, fmt.Errorf("LLM Provider %s is not supported", c.LLM_PROVIDER)
@@ -227,22 +249,22 @@ func runSingleEvaluation(ctx context.Context, cScores chan []float64, cErr chan 
 	cScores <- []float64{runResult.Quality, runResult.Maintainability, runResult.Security}
 }
 
-func (evaluator *Evaluator) Evaluate(tmpDir string, diff string) (*EvaluatorResult, error) {
-	fmt.Printf("Starting AI Evaluation (%d runs)...\n", EvaluationRuns)
+func (evaluator *Evaluator) Evaluate(tmpDir string, diff string, numEvalRuns int) (*EvaluatorResult, error) {
+	fmt.Printf("Starting AI Evaluation (%d runs)...\n", numEvalRuns)
 
 	var qualitySum, maintainabilitySum, securitySum float64
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cScores := make(chan []float64, EvaluationRuns)
-	cErrors := make(chan error, EvaluationRuns)
-	for run := 1; run <= EvaluationRuns; run++ {
-		fmt.Printf("Run %d/%d...\n", run, EvaluationRuns)
+	cScores := make(chan []float64, numEvalRuns)
+	cErrors := make(chan error, numEvalRuns)
+	for run := 1; run <= numEvalRuns; run++ {
+		fmt.Printf("Run %d/%d...\n", run, numEvalRuns)
 		go runSingleEvaluation(ctx, cScores, cErrors, run, tmpDir, diff)
 	}
 
-	for range EvaluationRuns {
+	for range numEvalRuns {
 		select {
 		case runScores := <-cScores:
 			qualitySum += runScores[0]
@@ -254,9 +276,9 @@ func (evaluator *Evaluator) Evaluate(tmpDir string, diff string) (*EvaluatorResu
 		}
 	}
 	avgResult := &EvaluatorResult{
-		Quality:         qualitySum / float64(EvaluationRuns),
-		Maintainability: maintainabilitySum / float64(EvaluationRuns),
-		Security:        securitySum / float64(EvaluationRuns),
+		Quality:         qualitySum / float64(numEvalRuns),
+		Maintainability: maintainabilitySum / float64(numEvalRuns),
+		Security:        securitySum / float64(numEvalRuns),
 	}
 
 	fmt.Printf("AI Evaluation Result: Quality=%.2f, Maintainability=%.2f, Security=%.2f\n",

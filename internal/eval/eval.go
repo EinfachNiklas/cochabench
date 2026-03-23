@@ -15,6 +15,7 @@ import (
 )
 
 const TIMEOUT_DURATION = 5 * time.Minute
+const NUM_EVAL_RUNS_DEFAULT = 3
 
 func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	runID := cmd.String("runID")
@@ -27,16 +28,17 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	}
 	debugMode := cmd.Bool("debug")
 	noAIEval := cmd.Bool("no-ai-eval")
+	numEvalRuns := cmd.Int("number-of-agents")
 
 	err := tools.ValidateDirPath(dirPath)
 	if err != nil {
 		return err
 	}
-	err = tools.ValidateDirStructure(cmd.String("path"))
+	err = tools.ValidateDirStructure(dirPath)
 	if err != nil {
 		return err
 	}
-	challengeConfig, err := tools.LoadChallengeConfig(filepath.Join(cmd.String("path"), "challenge.config.json"))
+	challengeConfig, err := tools.LoadChallengeConfig(filepath.Join(dirPath, "challenge.config.json"))
 	if err != nil {
 		return err
 	}
@@ -95,7 +97,11 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 
 		evaluator := agent.NewEvaluator()
 
-		aiEvaluation, err := evaluator.Evaluate(tempDir, diff)
+		if numEvalRuns < 1 {
+			numEvalRuns = NUM_EVAL_RUNS_DEFAULT
+		}
+
+		aiEvaluation, err := evaluator.Evaluate(tempDir, diff, numEvalRuns)
 		if err != nil {
 			return err
 		}

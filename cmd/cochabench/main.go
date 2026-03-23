@@ -91,6 +91,11 @@ func main() {
 								Aliases: []string{"no-ai"},
 								Usage:   "Disables the AI Evaluation: Values Quality, Maintainability and Security will be set to -1",
 							},
+							&cli.IntFlag{
+								Name:    "number-of-agents",
+								Aliases: []string{"n"},
+								Usage:   "Number of AI evaluation agents to run - Default = 3",
+							},
 						},
 					},
 					{

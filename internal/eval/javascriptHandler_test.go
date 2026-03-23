@@ -42,6 +42,13 @@ func TestParseJestJSON(t *testing.T) {
 			input: `{"numTotalTests":3,"numPassedTests":2,"numFailedTests":0,"numPendingTests":1,"testResults":[]}`,
 			wantTotal: 3, wantPassed: 2, wantSkipped: 1,
 		},
+		{
+			name: "WithLeadingAndTrailingOutput",
+			input: "npm notice something\n" +
+				`{"numTotalTests":1,"numPassedTests":1,"numFailedTests":0,"numPendingTests":0,"testResults":[]}` +
+				"\nJest did finish successfully\n",
+			wantTotal: 1, wantPassed: 1,
+		},
 	}
 
 	for _, tt := range tests {
