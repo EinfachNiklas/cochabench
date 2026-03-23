@@ -183,7 +183,7 @@ Currently, only Anthropic (Claude), OpenAI (ChatGPT, Codex) and Google (Gemini) 
 
 The generated config file exposes the following keys:
 
-- `LLM_PROVIDER`
+- `LLM_PROVIDER` (`anthropic`, `openai`, `google`)
 - `LLM_BASE_PATH`
 - `LLM_MODEL`
 - `CHALLENGE_SERVER`
