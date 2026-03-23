@@ -2,6 +2,7 @@
 
 ![GitHub Actions](https://github.com/EinfachNiklas/cochabench/workflows/Run%20Tests/badge.svg)
 ![Go Version](https://img.shields.io/github/go-mod/go-version/EinfachNiklas/cochabench)
+[![Go Reference](https://pkg.go.dev/badge/github.com/EinfachNiklas/cochabench/.svg)](https://pkg.go.dev/github.com/EinfachNiklas/cochabench/)
 
 **CochaBench** is a comprehensive coding challenge benchmark suite designed to evaluate and compare the performance of developers and AI coding agents across multiple programming languages.
 
