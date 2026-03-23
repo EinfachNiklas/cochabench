@@ -35,6 +35,11 @@ func main() {
 								Aliases: []string{"n"},
 								Usage:   "Name of run to initialize",
 							},
+							&cli.BoolFlag{
+								Name:    "print-id-only",
+								Aliases: []string{"id-only"},
+								Usage:   "Only prints the runID of the created run; used for automation",
+							},
 						},
 					}, {
 						Name:   "start",

@@ -36,6 +36,8 @@ func Init(ctx context.Context, cmd *cli.Command) error {
 		RunStatus: "I",
 	}
 
+	printIdOnly := cmd.Bool("print-id-only")
+
 	store, err := cochabenchdata.LoadCochabenchStore(dirPath)
 	if err != nil {
 		return fmt.Errorf("Could not load CochabenchStore: %v\n", err)
@@ -57,7 +59,11 @@ func Init(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return fmt.Errorf("Could not copy source files to solutions directory: %w", err)
 	}
-	fmt.Printf("Initialized run %s[%s] successfully\n", entry.RunName, entry.RunID)
+	if printIdOnly {
+		fmt.Println(entry.RunID)
+	} else {
+		fmt.Printf("Initialized run %s[%s] successfully\n", entry.RunName, entry.RunID)
+	}
 	return nil
 }
 
