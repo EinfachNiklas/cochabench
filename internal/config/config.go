@@ -41,7 +41,7 @@ func GetConfig() (*Config, error) {
 			LLM_PROVIDER:     "anthropic",
 			LLM_BASE_PATH:    "https://api.anthropic.com/v1",
 			LLM_MODEL:        "claude-sonnet-4-6",
-			CHALLENGE_SERVER: "https://github.com/EinfachNiklas/cochabench-challenges/",
+			CHALLENGE_SERVER: "https://api.github.com/repos/EinfachNiklas/cochabench-challenges/",
 		}
 		if err := saveConfig(&config); err != nil {
 			return nil, err
