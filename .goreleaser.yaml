@@ -18,7 +18,7 @@ builds:
       - arm64
     main: ./cmd/cochabench/
     ldflags:
-      - -X main.version={{.Version}}
+      - -X main.version={{.Tag}}
 
 archives:
   - formats: [tar.gz]
@@ -46,6 +46,13 @@ changelog:
       - "^test:"
 
 release:
+  name_template: "CochaBench {{ .Tag }}"
+  make_latest: true
+  prerelease: auto
+  header: |
+    ## Release {{ .Tag }}
+
+    Binary builds for Linux, macOS and Windows.
   footer: >-
 
     ---
