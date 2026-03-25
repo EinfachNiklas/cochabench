@@ -28,10 +28,17 @@ func TestGithubGet(t *testing.T) {
 			serverStatus: 200,
 			checkRequest: func(t *testing.T, r *http.Request) {
 				auth := r.Header.Get("Authorization")
-				if auth != "Bearer ghp_testtoken123" {
-					t.Errorf("Authorization = %q, want %q", auth, "Bearer ghp_testtoken123")
+				if auth != "" {
+					t.Errorf("Authorization = %q, want empty (token only used on retry)", auth)
 				}
 			},
+		},
+		{
+			name:         "Success_WithToken_After401",
+			token:        "ghp_testtoken123",
+			serverStatus: 401,
+			wantErr:      true,
+			errSubstr:    "Token provided",
 		},
 		{
 			name:         "Success_WithoutToken",
@@ -120,6 +127,42 @@ func TestGithubGet(t *testing.T) {
 				tt.checkRequest(t, lastRequest)
 			}
 		})
+	}
+}
+
+func TestGithubGet_TokenRetry(t *testing.T) {
+	// Test that token is used on retry after 401
+	requestCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		auth := r.Header.Get("Authorization")
+
+		if requestCount == 1 {
+			if auth != "" {
+				t.Errorf("First request: Authorization = %q, want empty", auth)
+			}
+			w.WriteHeader(401)
+			return
+		}
+
+		if auth != "Bearer ghp_testtoken123" {
+			t.Errorf("Second request: Authorization = %q, want %q", auth, "Bearer ghp_testtoken123")
+		}
+		w.WriteHeader(200)
+		fmt.Fprint(w, "OK")
+	}))
+	defer srv.Close()
+
+	t.Setenv("GITHUB_TOKEN", "ghp_testtoken123")
+
+	res, err := githubGet(srv.URL, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer res.Body.Close()
+
+	if requestCount != 2 {
+		t.Errorf("requestCount = %d, want 2 (initial + retry)", requestCount)
 	}
 }
 
