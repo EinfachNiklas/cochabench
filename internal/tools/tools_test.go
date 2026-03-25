@@ -3,6 +3,7 @@ package tools
 import (
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
@@ -304,6 +305,101 @@ func TestFmtTime(t *testing.T) {
 			got := FmtTime(tt.t)
 			if got != tt.want {
 				t2.Errorf("FmtTime() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetBuildVersion(t *testing.T) {
+	t.Run("UsesExternalVersionWhenProvided", func(t *testing.T) {
+		got := GetBuildVersion("v1.2.3")
+		if got != "v1.2.3" {
+			t.Fatalf("GetBuildVersion() = %q, want %q", got, "v1.2.3")
+		}
+	})
+
+	tests := []struct {
+		name            string
+		externalVersion string
+		info            *debug.BuildInfo
+		ok              bool
+		want            string
+	}{
+		{
+			name:            "ReturnsExternalVersionWithoutReadingBuildInfo",
+			externalVersion: "v1.2.3",
+			info: &debug.BuildInfo{
+				Main: debug.Module{
+					Version: "v9.9.9",
+				},
+			},
+			ok:   true,
+			want: "v1.2.3",
+		},
+		{
+			name:            "UsesMainVersionFromBuildInfo",
+			externalVersion: "dev",
+			info: &debug.BuildInfo{
+				Main: debug.Module{
+					Version: "v0.1.3+dirty",
+				},
+			},
+			ok:   true,
+			want: "v0.1.3+dirty",
+		},
+		{
+			name:            "FallsBackToShortVCSRevision",
+			externalVersion: "dev",
+			info: &debug.BuildInfo{
+				Main: debug.Module{
+					Version: "(devel)",
+				},
+				Settings: []debug.BuildSetting{
+					{Key: "vcs.revision", Value: "abcdef1234567890"},
+				},
+			},
+			ok:   true,
+			want: "abcdef1",
+		},
+		{
+			name:            "ReturnsShortRevisionWithoutTruncationWhenAlreadyShort",
+			externalVersion: "dev",
+			info: &debug.BuildInfo{
+				Main: debug.Module{
+					Version: "(devel)",
+				},
+				Settings: []debug.BuildSetting{
+					{Key: "vcs.revision", Value: "abc123"},
+				},
+			},
+			ok:   true,
+			want: "abc123",
+		},
+		{
+			name:            "FallsBackToExternalVersionWithoutBuildInfo",
+			externalVersion: "dev",
+			info:            nil,
+			ok:              false,
+			want:            "dev",
+		},
+		{
+			name:            "FallsBackToExternalVersionWhenBuildInfoHasNoUsefulVersion",
+			externalVersion: "dev",
+			info: &debug.BuildInfo{
+				Main: debug.Module{
+					Version: "(devel)",
+				},
+			},
+			ok:   true,
+			want: "dev",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolveBuildVersion(tt.externalVersion, tt.info, tt.ok)
+			if got != tt.want {
+				t.Fatalf("resolveBuildVersion() = %q, want %q", got, tt.want)
 			}
 		})
 	}
