@@ -59,7 +59,7 @@ func getLLM() (*llms.Model, error) {
 			anthropic.WithToken(env.LLM_API_KEY),
 			anthropic.WithModel(c.LLM_MODEL),
 		}
-		if len(c.LLM_BASE_PATH) == 0 {
+		if len(c.LLM_BASE_PATH) != 0 {
 			opts = append(opts, anthropic.WithBaseURL(c.LLM_BASE_PATH))
 		}
 		llm, err = anthropic.New(opts...)
@@ -71,7 +71,7 @@ func getLLM() (*llms.Model, error) {
 			openai.WithToken(env.LLM_API_KEY),
 			openai.WithModel(c.LLM_MODEL),
 		}
-		if len(c.LLM_BASE_PATH) == 0 {
+		if len(c.LLM_BASE_PATH) != 0 {
 			opts = append(opts, openai.WithBaseURL(c.LLM_BASE_PATH))
 		}
 		llm, err = openai.New(opts...)
@@ -83,7 +83,7 @@ func getLLM() (*llms.Model, error) {
 			googleai.WithAPIKey(env.LLM_API_KEY),
 			googleai.WithDefaultModel(c.LLM_MODEL),
 		}
-		if len(c.LLM_BASE_PATH) == 0 {
+		if len(c.LLM_BASE_PATH) != 0 {
 			opts = append(opts, googleai.WithCloudLocation(c.LLM_BASE_PATH))
 		}
 		llm, err = googleai.New(context.Background(), opts...)
