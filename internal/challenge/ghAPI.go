@@ -30,10 +30,6 @@ func githubGet(url string, downloadingFile bool) (*http.Response, error) {
 		return nil, fmt.Errorf("Could not create Request to url%s: %v\n", url, err)
 	}
 
-	if len(GITHUB_TOKEN) != 0 {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", GITHUB_TOKEN))
-	}
-
 	if downloadingFile {
 		req.Header.Set("Accept", "application/octet-stream")
 	}
@@ -57,11 +53,41 @@ func githubGet(url string, downloadingFile bool) (*http.Response, error) {
 		}
 	}
 
+	// If 401/403 and token exists, retry with token
+	if (res.StatusCode == 401 || res.StatusCode == 403) && len(GITHUB_TOKEN) != 0 {
+		req, err = http.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, fmt.Errorf("Could not create Request to url%s: %v\n", url, err)
+		}
+
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", GITHUB_TOKEN))
+
+		if downloadingFile {
+			req.Header.Set("Accept", "application/octet-stream")
+		}
+
+		res, err = client.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to send http request: %v\n", err)
+		}
+
+		if res.StatusCode == 302 || res.StatusCode == 301 {
+			location := res.Header.Get("Location")
+			res, err = http.Get(location)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to follow redirect: %v\n", err)
+			}
+		}
+
+		if res.StatusCode == 401 {
+			return nil, fmt.Errorf("The Github Token provided in the environment variable GITHUB_TOKEN is invalid")
+		}
+	}
+
 	if res.StatusCode == 401 && len(GITHUB_TOKEN) == 0 {
 		return nil, fmt.Errorf("A Github Token is required. Please provide it via the environment variable GITHUB_TOKEN")
-	} else if res.StatusCode == 401 {
-		return nil, fmt.Errorf("The Github Token provided in the environment variable GITHUB_TOKEN is invalid")
 	}
+
 	return res, nil
 }
 
