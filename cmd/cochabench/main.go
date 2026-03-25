@@ -9,15 +9,19 @@ import (
 	"github.com/EinfachNiklas/cochabench/internal/config"
 	"github.com/EinfachNiklas/cochabench/internal/eval"
 	"github.com/EinfachNiklas/cochabench/internal/run"
+	"github.com/EinfachNiklas/cochabench/internal/tools"
 	"github.com/google/uuid"
 
 	"github.com/urfave/cli/v3"
 )
 
+var version = "dev"
+
 func main() {
 	cmd := &cli.Command{
-		Name:  "cochabench",
-		Usage: "Handle the coding challenges",
+		Name:    "cochabench",
+		Usage:   "Handle the coding challenges",
+		Version: tools.GetBuildVersion(version),
 		Commands: []*cli.Command{
 			{
 				Name:    "run",

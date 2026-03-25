@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -160,4 +161,35 @@ func FmtTime(t time.Time) string {
 		return "-"
 	}
 	return t.Local().Format("2006-01-02 15:04:05")
+}
+
+func GetBuildVersion(externalVersion string) string {
+	info, ok := debug.ReadBuildInfo()
+	return resolveBuildVersion(externalVersion, info, ok)
+}
+
+func resolveBuildVersion(externalVersion string, info *debug.BuildInfo, ok bool) string {
+	if externalVersion != "" && externalVersion != "dev" {
+		return externalVersion
+	}
+
+	if !ok || info == nil {
+		return externalVersion
+	}
+
+	if info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+
+	for _, setting := range info.Settings {
+		if setting.Key != "vcs.revision" || setting.Value == "" {
+			continue
+		}
+		if len(setting.Value) > 7 {
+			return setting.Value[:7]
+		}
+		return setting.Value
+	}
+
+	return externalVersion
 }
