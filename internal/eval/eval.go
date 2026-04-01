@@ -25,9 +25,16 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	}
 	debugMode := cmd.Bool("debug")
 	noAIEval := cmd.Bool("no-ai-eval")
+
 	numEvalRuns := cmd.Int("number-of-agents")
+	if numEvalRuns < 1 {
+		numEvalRuns = 1
+	}
 
 	timeout := cmd.Duration("timeout")
+	if timeout < 1*time.Second {
+		timeout = 5 * time.Minute
+	}
 
 	err := tools.ValidateDirPath(dirPath)
 	if err != nil {
