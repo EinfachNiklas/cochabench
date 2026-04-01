@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCreateHandler(t *testing.T) {
@@ -68,7 +69,7 @@ func TestExecuteTests_WrapsHandlerErrorOnce(t *testing.T) {
 		},
 	}
 
-	_, err, timedOut := executeTests(handler, t.TempDir())
+	_, err, timedOut := executeTests(handler, t.TempDir(), 5*time.Minute)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
