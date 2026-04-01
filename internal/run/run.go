@@ -130,6 +130,7 @@ func Stop(ctx context.Context, cmd *cli.Command) error {
 	case "R":
 		entry.EndTime = time.Now()
 		entry.RunStatus = "F"
+		entry.Duration = entry.EndTime.Sub(entry.StartTime)
 	case "F":
 		return errors.New("Run is already finished")
 	case "I", "C":

@@ -11,13 +11,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 type GoHandler struct{}
 
 func (h GoHandler) ExecuteTests(ctx context.Context, tempDir string) (*TestResult, error) {
-	startTime := time.Now()
 
 	// Download dependencies
 	fmt.Println("Downloading Go dependencies...")
@@ -43,15 +41,12 @@ func (h GoHandler) ExecuteTests(ctx context.Context, tempDir string) (*TestResul
 	cmd.Dir = tempDir
 
 	output, err := cmd.CombinedOutput()
-	duration := time.Since(startTime)
 
 	if ctx.Err() == context.DeadlineExceeded {
 		return nil, fmt.Errorf("Test execution timed out")
 	}
 
-	result := &TestResult{
-		Duration: duration,
-	}
+	result := &TestResult{}
 
 	if parseErr := h.parseGoTestJSON(output, result); parseErr != nil {
 		return nil, fmt.Errorf("Could not parse Go test results: %w", parseErr)

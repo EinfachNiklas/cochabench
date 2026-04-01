@@ -8,13 +8,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"time"
 )
 
 type JavascriptHandler struct{}
 
 func (h JavascriptHandler) ExecuteTests(ctx context.Context, tempDir string) (*TestResult, error) {
-	startTime := time.Now()
 
 	fmt.Println("Installing Packages...")
 	cmd := exec.CommandContext(ctx, "npm", "install")
@@ -32,15 +30,12 @@ func (h JavascriptHandler) ExecuteTests(ctx context.Context, tempDir string) (*T
 	cmd.Dir = tempDir
 
 	output, err = cmd.CombinedOutput()
-	duration := time.Since(startTime)
 
 	if ctx.Err() == context.DeadlineExceeded {
 		return nil, fmt.Errorf("Test execution timed out")
 	}
 
-	result := &TestResult{
-		Duration: duration,
-	}
+	result := &TestResult{}
 
 	// Try parsing as Jest JSON
 	if parseErr := h.parseJestJSON(output, result); parseErr != nil {

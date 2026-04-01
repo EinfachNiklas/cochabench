@@ -110,7 +110,6 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 		runData.SecurityScore = aiEvaluation.Security
 	}
 
-	runData.TestDuration = testResult.Duration
 	runData.TimedOut = timedOut
 	runData.NumTotalTests = testResult.TotalTests
 	runData.NumPassedTests = testResult.PassedTests
@@ -173,7 +172,7 @@ func printEvaluationAsTable(entry *cochabenchdata.CochabenchEntry) {
 		entry.RunStatus,
 		tools.FmtTime(entry.StartTime),
 		tools.FmtTime(entry.EndTime),
-		entry.TestDuration.String(),
+		entry.Duration.String(),
 		fmt.Sprintf("%v", entry.TimedOut),
 		fmt.Sprintf("%d", entry.NumTotalTests),
 		fmt.Sprintf("%d", entry.NumPassedTests),
