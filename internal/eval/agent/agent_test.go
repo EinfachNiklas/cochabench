@@ -2,11 +2,13 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/tools"
 )
 
@@ -16,8 +18,8 @@ type mockTool struct {
 	desc string
 }
 
-func (m mockTool) Name() string                                         { return m.name }
-func (m mockTool) Description() string                                  { return m.desc }
+func (m mockTool) Name() string                                           { return m.name }
+func (m mockTool) Description() string                                    { return m.desc }
 func (m mockTool) Call(ctx context.Context, input string) (string, error) { return "", nil }
 
 func TestCsvFromTools(t *testing.T) {
@@ -167,4 +169,58 @@ func TestDirectoryLister_Call(t *testing.T) {
 			t.Errorf("expected 'is not a directory' in output, got: %q", got)
 		}
 	})
+}
+
+func TestNormalizeAIEvaluationError(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    error
+		wantText string
+		wantSame bool
+	}{
+		{
+			name:     "StandardizedRateLimit",
+			input:    llms.NewError(llms.ErrCodeRateLimit, "openai", "Rate limit exceeded"),
+			wantText: aiRateLimitErrorMessage,
+		},
+		{
+			name:     "StandardizedQuotaExceeded",
+			input:    llms.NewError(llms.ErrCodeQuotaExceeded, "anthropic", "Quota exceeded"),
+			wantText: aiQuotaExceededErrorMessage,
+		},
+		{
+			name:     "StringFallbackRateLimit",
+			input:    errors.New("429 too many requests"),
+			wantText: aiRateLimitErrorMessage,
+		},
+		{
+			name:     "StringFallbackQuotaExceeded",
+			input:    errors.New("credit balance exhausted"),
+			wantText: aiQuotaExceededErrorMessage,
+		},
+		{
+			name:     "UnchangedOtherError",
+			input:    errors.New("network down"),
+			wantText: "network down",
+			wantSame: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := normalizeAIEvaluationError(tt.input)
+			if got == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if got.Error() != tt.wantText {
+				t.Fatalf("normalizeAIEvaluationError() = %q, want %q", got.Error(), tt.wantText)
+			}
+			if tt.wantSame && got != tt.input {
+				t.Fatal("expected error to be returned unchanged")
+			}
+			if strings.Contains(got.Error(), "\n") {
+				t.Fatalf("error %q should not contain newlines", got.Error())
+			}
+		})
+	}
 }

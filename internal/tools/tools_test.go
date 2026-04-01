@@ -99,7 +99,7 @@ func TestValidateDirPath(t *testing.T) {
 				return filepath.Join(t.TempDir(), "nope")
 			},
 			wantErr:   true,
-			errSubstr: "does not exist",
+			errSubstr: "Directory does not exist",
 		},
 		{
 			name: "IsFile",
@@ -157,15 +157,15 @@ func setupChallengeDir(t *testing.T, createSrc, createTest, createConfig bool) s
 
 func TestValidateDirStructure(t *testing.T) {
 	tests := []struct {
-		name         string
+		name              string
 		src, test, config bool
-		wantErr      bool
-		errSubstr    string
+		wantErr           bool
+		errSubstr         string
 	}{
 		{"Valid", true, true, true, false, ""},
-		{"MissingSrc", false, true, true, true, "Missing Directory 'src'"},
-		{"MissingTest", true, false, true, true, "Missing Directory 'test'"},
-		{"MissingConfig", true, true, false, true, "Missing challenge.config.json"},
+		{"MissingSrc", false, true, true, true, "missing required folder: src"},
+		{"MissingTest", true, false, true, true, "missing required folder: test"},
+		{"MissingConfig", true, true, false, true, "missing required file: challenge.config.json"},
 	}
 
 	for _, tt := range tests {
@@ -188,14 +188,14 @@ func TestValidateDirStructure(t *testing.T) {
 
 func TestLoadChallengeConfig(t *testing.T) {
 	tests := []struct {
-		name          string
-		content       string
-		writeFile     bool
-		wantErr       bool
-		errSubstr     string
-		wantName      string
-		wantID        string
-		wantType      string
+		name      string
+		content   string
+		writeFile bool
+		wantErr   bool
+		errSubstr string
+		wantName  string
+		wantID    string
+		wantType  string
 	}{
 		{
 			name:      "ValidJSON",
@@ -210,7 +210,7 @@ func TestLoadChallengeConfig(t *testing.T) {
 			content:   `{bad json`,
 			writeFile: true,
 			wantErr:   true,
-			errSubstr: "Malformed",
+			errSubstr: "challenge.config.json is invalid",
 		},
 		{
 			name:      "FileNotFound",

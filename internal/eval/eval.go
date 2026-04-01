@@ -20,7 +20,7 @@ const NUM_EVAL_RUNS_DEFAULT = 3
 func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	runID := cmd.String("runID")
 	if len(runID) == 0 {
-		return fmt.Errorf("No runID provided. Nothing to evaluate")
+		return fmt.Errorf("Missing required flag: --runID")
 	}
 	dirPath := cmd.String("path")
 	if len(dirPath) == 0 {
@@ -45,20 +45,20 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 
 	store, err := cochabenchdata.LoadCochabenchStore(dirPath)
 	if err != nil {
-		return fmt.Errorf("Could not load CochabenchStore: %v\n", err)
+		return err
 	}
 	defer store.Close()
 
 	runData, found, err := store.GetEntry(runID)
 	if err != nil {
-		return fmt.Errorf("Could not load Run Data: %w", err)
+		return err
 	}
 	if !found {
-		return fmt.Errorf("This run does not exist")
+		return fmt.Errorf("Run not found")
 	}
 
 	if runData.RunStatus != "F" {
-		return fmt.Errorf("Run is not finished. Nothing to evaluate")
+		return fmt.Errorf("Run must be finished before evaluation")
 	}
 
 	handler, err := createHandler(challengeConfig.ChallengeType)
@@ -68,7 +68,7 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 
 	tempDir, cleanup, err := handler.PrepareEnvironment(dirPath, runID)
 	if err != nil {
-		return fmt.Errorf("Failed to prepare temporary environment for evaluation: %w", err)
+		return fmt.Errorf("Could not prepare evaluation environment: %w", err)
 	}
 	if !debugMode {
 		defer cleanup()
@@ -78,7 +78,7 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 
 	testResult, err, timedOut := executeTests(handler, tempDir)
 	if err != nil {
-		return fmt.Errorf("Failed to execute tests: %w", err)
+		return err
 	}
 
 	if noAIEval {
@@ -135,7 +135,7 @@ func createHandler(challengeType string) (LanguageHandler, error) {
 	case "go", "golang":
 		return GoHandler{}, nil
 	default:
-		return nil, fmt.Errorf("unsupported challenge type: %s", challengeType)
+		return nil, fmt.Errorf("Unsupported challenge type: %s", challengeType)
 	}
 }
 
@@ -159,7 +159,7 @@ func executeTests(handler LanguageHandler, tempDir string) (result *TestResult, 
 	case result = <-resultChan:
 		return result, nil, false
 	case err = <-errorChan:
-		return nil, fmt.Errorf("Failed to execute tests: %w", err), false
+		return nil, fmt.Errorf("Test execution failed: %w", err), false
 	case <-ctx.Done():
 		return nil, fmt.Errorf("Test execution timed out"), true
 	}

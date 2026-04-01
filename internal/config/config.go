@@ -22,7 +22,7 @@ type Config struct {
 func getConfigPath() (string, error) {
 	userConfigDirPath, err := os.UserConfigDir()
 	if err != nil {
-		return "", fmt.Errorf("Could not get UserConfigDir: %v\n", err)
+		return "", fmt.Errorf("Could not determine config directory: %w", err)
 	}
 	return filepath.Join(userConfigDirPath, "cochabench", "config.json"), nil
 }
@@ -47,15 +47,15 @@ func GetConfig() (*Config, error) {
 			return nil, err
 		}
 	} else if err != nil {
-		return nil, fmt.Errorf("Can not access config file: %v\n", err)
+		return nil, fmt.Errorf("Could not access config file: %w", err)
 	} else {
 		d, err := os.ReadFile(configPath)
 		if err != nil {
-			return nil, fmt.Errorf("Could not read config file %v\n", err)
+			return nil, fmt.Errorf("Could not read config file: %w", err)
 		}
 		err = json.Unmarshal(d, &config)
 		if err != nil {
-			return nil, fmt.Errorf("Could not parse config file to json: %v\n", err)
+			return nil, fmt.Errorf("Config file is invalid JSON: %w", err)
 		}
 	}
 	return &config, nil
@@ -71,7 +71,7 @@ func Initialize(ctx context.Context, cmd *cli.Command) error {
 	if os.IsNotExist(err) {
 		_, err = GetConfig()
 		if err != nil {
-			return fmt.Errorf("Could not initialize config: %v\n", err)
+			return fmt.Errorf("Could not initialize config: %w", err)
 		}
 		fmt.Printf("Initialized Config at %s\n", configPath)
 		return nil
@@ -97,11 +97,11 @@ func saveConfig(c *Config) error {
 	}
 	err = os.MkdirAll(filepath.Dir(configPath), 0755)
 	if err != nil {
-		return fmt.Errorf("Could not create config directory: %v\n", err)
+		return fmt.Errorf("Could not create config directory: %w", err)
 	}
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
-		return fmt.Errorf("Could not marshal config: %v\n", err)
+		return fmt.Errorf("Could not serialize config: %w", err)
 	}
 	return os.WriteFile(configPath, data, 0644)
 }
@@ -128,7 +128,7 @@ func Show(ctx context.Context, cmd *cli.Command) error {
 func Get(ctx context.Context, cmd *cli.Command) error {
 	key := cmd.Args().Get(0)
 	if len(key) == 0 {
-		return fmt.Errorf("No key provided. Usage: cochabench config get <key>")
+		return fmt.Errorf("Missing required argument: config key")
 	}
 	config, err := GetConfig()
 	if err != nil {
