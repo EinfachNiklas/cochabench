@@ -18,6 +18,7 @@ func TestGithubGet(t *testing.T) {
 		downloadingFile bool
 		serverStatus    int
 		serverHeaders   map[string]string
+		serverBody      string
 		wantErr         bool
 		errSubstr       string
 		checkRequest    func(t *testing.T, r *http.Request)
@@ -89,6 +90,51 @@ func TestGithubGet(t *testing.T) {
 			wantErr:      true,
 			errSubstr:    "GITHUB_TOKEN is invalid",
 		},
+		{
+			name:         "RateLimit_429_NoToken",
+			token:        "",
+			serverStatus: 429,
+			wantErr:      true,
+			errSubstr:    githubRateLimitErrorMessage,
+		},
+		{
+			name:         "RateLimit_403_RemainingZero",
+			token:        "",
+			serverStatus: 403,
+			serverHeaders: map[string]string{
+				"X-RateLimit-Remaining": "0",
+			},
+			wantErr:   true,
+			errSubstr: githubRateLimitErrorMessage,
+		},
+		{
+			name:         "RateLimit_403_RetryAfter",
+			token:        "",
+			serverStatus: 403,
+			serverHeaders: map[string]string{
+				"Retry-After": "60",
+			},
+			wantErr:   true,
+			errSubstr: githubRateLimitErrorMessage,
+		},
+		{
+			name:         "RateLimit_403_BodyMatch",
+			token:        "",
+			serverStatus: 403,
+			serverBody:   "secondary rate limit in effect",
+			wantErr:      true,
+			errSubstr:    githubRateLimitErrorMessage,
+		},
+		{
+			name:         "RateLimit_403_WithTokenAfterRetry",
+			token:        "ghp_testtoken123",
+			serverStatus: 403,
+			serverHeaders: map[string]string{
+				"X-RateLimit-Remaining": "0",
+			},
+			wantErr:   true,
+			errSubstr: githubRateLimitErrorMessage,
+		},
 	}
 
 	for _, tt := range tests {
@@ -100,7 +146,11 @@ func TestGithubGet(t *testing.T) {
 					w.Header().Set(k, v)
 				}
 				w.WriteHeader(tt.serverStatus)
-				fmt.Fprint(w, "OK")
+				body := tt.serverBody
+				if body == "" {
+					body = "OK"
+				}
+				fmt.Fprint(w, body)
 			}))
 			defer srv.Close()
 

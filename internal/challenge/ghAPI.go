@@ -1,12 +1,14 @@
 package challenge
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/EinfachNiklas/cochabench/internal/config"
 )
@@ -21,6 +23,8 @@ type ghRelease struct {
 	TagName string    `json:"tag_name"`
 	Assets  []ghAsset `json:"assets"`
 }
+
+const githubRateLimitErrorMessage = "GitHub API rate limit exceeded; please try again later or use GITHUB_TOKEN"
 
 func githubGet(url string, downloadingFile bool) (*http.Response, error) {
 	GITHUB_TOKEN := os.Getenv("GITHUB_TOKEN")
@@ -47,6 +51,7 @@ func githubGet(url string, downloadingFile bool) (*http.Response, error) {
 
 	if res.StatusCode == 302 || res.StatusCode == 301 {
 		location := res.Header.Get("Location")
+		res.Body.Close()
 		res, err = http.Get(location)
 		if err != nil {
 			return nil, fmt.Errorf("Could not follow download redirect: %w", err)
@@ -66,6 +71,7 @@ func githubGet(url string, downloadingFile bool) (*http.Response, error) {
 			req.Header.Set("Accept", "application/octet-stream")
 		}
 
+		res.Body.Close()
 		res, err = client.Do(req)
 		if err != nil {
 			return nil, fmt.Errorf("HTTP request failed: %w", err)
@@ -73,6 +79,7 @@ func githubGet(url string, downloadingFile bool) (*http.Response, error) {
 
 		if res.StatusCode == 302 || res.StatusCode == 301 {
 			location := res.Header.Get("Location")
+			res.Body.Close()
 			res, err = http.Get(location)
 			if err != nil {
 				return nil, fmt.Errorf("Could not follow download redirect: %w", err)
@@ -80,15 +87,57 @@ func githubGet(url string, downloadingFile bool) (*http.Response, error) {
 		}
 
 		if res.StatusCode == 401 {
+			res.Body.Close()
 			return nil, fmt.Errorf("GITHUB_TOKEN is invalid")
 		}
 	}
 
 	if res.StatusCode == 401 && len(GITHUB_TOKEN) == 0 {
+		res.Body.Close()
 		return nil, fmt.Errorf("GITHUB_TOKEN is required to access this repository")
 	}
 
+	rateLimited, err := isGitHubRateLimitResponse(res)
+	if err != nil {
+		res.Body.Close()
+		return nil, err
+	}
+	if rateLimited {
+		res.Body.Close()
+		return nil, fmt.Errorf(githubRateLimitErrorMessage)
+	}
+
 	return res, nil
+}
+
+func isGitHubRateLimitResponse(res *http.Response) (bool, error) {
+	if res == nil {
+		return false, nil
+	}
+
+	if res.StatusCode == http.StatusTooManyRequests {
+		return true, nil
+	}
+	if res.StatusCode != http.StatusForbidden {
+		return false, nil
+	}
+
+	if res.Header.Get("X-RateLimit-Remaining") == "0" {
+		return true, nil
+	}
+	if res.Header.Get("Retry-After") != "" {
+		return true, nil
+	}
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return false, fmt.Errorf("Could not read GitHub API response: %w", err)
+	}
+	res.Body.Close()
+	res.Body = io.NopCloser(bytes.NewReader(body))
+
+	bodyText := strings.ToLower(string(body))
+	return strings.Contains(bodyText, "secondary rate limit") || strings.Contains(bodyText, "rate limit"), nil
 }
 
 var getConfig = config.GetConfig

@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -26,6 +27,11 @@ type EvaluatorResult struct {
 	Maintainability float64 `json:"maintainability"`
 	Security        float64 `json:"security"`
 }
+
+const (
+	aiRateLimitErrorMessage     = "AI provider rate limit exceeded; please try again later"
+	aiQuotaExceededErrorMessage = "AI provider quota exceeded; please check your account limits"
+)
 
 func csvFromTools(tools []tools.Tool, mode int) string {
 	var values []string
@@ -208,17 +214,44 @@ func NewEvaluator() *Evaluator {
 	return &Evaluator{}
 }
 
+func normalizeAIEvaluationError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if llms.IsRateLimitError(err) || matchesAnyErrorPattern(err, "rate limit", "too many requests", "429") {
+		return errors.New(aiRateLimitErrorMessage)
+	}
+	if llms.IsQuotaExceededError(err) || matchesAnyErrorPattern(err, "quota exceeded", "billing hard limit", "credit balance", "insufficient") {
+		return errors.New(aiQuotaExceededErrorMessage)
+	}
+	return err
+}
+
+func matchesAnyErrorPattern(err error, patterns ...string) bool {
+	if err == nil {
+		return false
+	}
+
+	text := strings.ToLower(err.Error())
+	for _, pattern := range patterns {
+		if strings.Contains(text, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
 func runSingleEvaluation(ctx context.Context, cScores chan []float64, cErr chan error, run int, tmpDir string, diff string) {
 	agent, err := getEvalAgent()
 	if err != nil {
-		cErr <- fmt.Errorf("AI evaluation run %d failed: %w", run, err)
+		cErr <- fmt.Errorf("AI evaluation run %d failed: %w", run, normalizeAIEvaluationError(err))
 		return
 	}
 	executor := agents.NewExecutor(agent, agents.WithMaxIterations(20))
 
 	responses, err := executor.Call(ctx, map[string]any{"tmp_dir": tmpDir, "diff": diff}, chains.WithTemperature(0.0))
 	if err != nil {
-		cErr <- fmt.Errorf("AI evaluation run %d failed: %w", run, err)
+		cErr <- fmt.Errorf("AI evaluation run %d failed: %w", run, normalizeAIEvaluationError(err))
 		return
 	}
 
