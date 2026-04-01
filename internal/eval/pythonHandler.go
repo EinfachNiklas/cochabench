@@ -7,13 +7,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"time"
 )
 
 type PythonHandler struct{}
 
 func (h PythonHandler) ExecuteTests(ctx context.Context, tempDir string) (*TestResult, error) {
-	startTime := time.Now()
 
 	// Determine python command (try python3 first, fallback to python)
 	pythonCmd := "python3"
@@ -76,15 +74,12 @@ func (h PythonHandler) ExecuteTests(ctx context.Context, tempDir string) (*TestR
 	cmd.Env = append(os.Environ(), "PYTHONPATH="+tempDir)
 
 	_, err = cmd.CombinedOutput()
-	duration := time.Since(startTime)
 
 	if ctx.Err() == context.DeadlineExceeded {
 		return nil, fmt.Errorf("Test execution timed out")
 	}
 
-	result := &TestResult{
-		Duration: duration,
-	}
+	result := &TestResult{}
 
 	reportPath := filepath.Join(tempDir, "report.json")
 	reportData, readErr := os.ReadFile(reportPath)

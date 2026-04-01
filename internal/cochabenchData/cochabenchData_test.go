@@ -70,7 +70,7 @@ func TestSaveAndGetEntry(t *testing.T) {
 		RunStatus:            "F",
 		StartTime:            now,
 		EndTime:              now.Add(30 * time.Second),
-		TestDuration:         10 * time.Second,
+		Duration:             10 * time.Second,
 		TimedOut:             false,
 		NumTotalTests:        5,
 		NumPassedTests:       4,
