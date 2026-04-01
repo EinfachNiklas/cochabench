@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"time"
 
 	challenges "github.com/EinfachNiklas/cochabench/internal/challenge"
 	"github.com/EinfachNiklas/cochabench/internal/config"
@@ -98,7 +99,14 @@ func main() {
 							&cli.IntFlag{
 								Name:    "number-of-agents",
 								Aliases: []string{"n"},
+								Value:   3,
 								Usage:   "Number of AI evaluation agents to run - Default = 3",
+							},
+							&cli.DurationFlag{
+								Name:    "timeout",
+								Aliases: []string{"t"},
+								Value:   5 * time.Minute,
+								Usage:   "Time until an evaluation times out - Defaul = 5m",
 							},
 						},
 					},

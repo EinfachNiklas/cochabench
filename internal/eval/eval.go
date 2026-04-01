@@ -14,9 +14,6 @@ import (
 	"github.com/EinfachNiklas/cochabench/internal/tools"
 )
 
-const TIMEOUT_DURATION = 5 * time.Minute
-const NUM_EVAL_RUNS_DEFAULT = 3
-
 func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	runID := cmd.String("runID")
 	if len(runID) == 0 {
@@ -28,7 +25,16 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	}
 	debugMode := cmd.Bool("debug")
 	noAIEval := cmd.Bool("no-ai-eval")
+
 	numEvalRuns := cmd.Int("number-of-agents")
+	if numEvalRuns < 1 {
+		numEvalRuns = 1
+	}
+
+	timeout := cmd.Duration("timeout")
+	if timeout < 1*time.Second {
+		timeout = 5 * time.Minute
+	}
 
 	err := tools.ValidateDirPath(dirPath)
 	if err != nil {
@@ -76,7 +82,7 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 		log.Printf("Location of tmpDir for eval: %s\n", tempDir)
 	}
 
-	testResult, err, timedOut := executeTests(handler, tempDir)
+	testResult, err, timedOut := executeTests(handler, tempDir, timeout)
 	if err != nil {
 		return err
 	}
@@ -96,10 +102,6 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 		}
 
 		evaluator := agent.NewEvaluator()
-
-		if numEvalRuns < 1 {
-			numEvalRuns = NUM_EVAL_RUNS_DEFAULT
-		}
 
 		aiEvaluation, err := evaluator.Evaluate(tempDir, diff, numEvalRuns)
 		if err != nil {
@@ -138,8 +140,8 @@ func createHandler(challengeType string) (LanguageHandler, error) {
 	}
 }
 
-func executeTests(handler LanguageHandler, tempDir string) (result *TestResult, err error, timedOut bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), TIMEOUT_DURATION)
+func executeTests(handler LanguageHandler, tempDir string, timeout time.Duration) (result *TestResult, err error, timedOut bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	resultChan := make(chan *TestResult)
