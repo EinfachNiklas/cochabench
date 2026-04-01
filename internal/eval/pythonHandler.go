@@ -26,12 +26,12 @@ func (h PythonHandler) ExecuteTests(ctx context.Context, tempDir string) (*TestR
 	venvPath := filepath.Join(tempDir, "venv")
 	cmd := exec.CommandContext(ctx, pythonCmd, "-m", "venv", venvPath)
 	cmd.Dir = tempDir
-	output, err := cmd.CombinedOutput()
+	_, err := cmd.CombinedOutput()
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
-			return nil, fmt.Errorf("Creating virtual environment timed out")
+			return nil, fmt.Errorf("Python environment setup timed out")
 		}
-		return nil, fmt.Errorf("Error creating virtual environment: %s", output)
+		return nil, fmt.Errorf("Could not create Python virtual environment: %w", err)
 	}
 
 	var pipPath, pythonPath string
@@ -48,12 +48,12 @@ func (h PythonHandler) ExecuteTests(ctx context.Context, tempDir string) (*TestR
 	fmt.Println("Installing pytest...")
 	cmd = exec.CommandContext(ctx, pipPath, "install", "pytest", "pytest-json-report", "--quiet")
 	cmd.Dir = tempDir
-	output, err = cmd.CombinedOutput()
+	_, err = cmd.CombinedOutput()
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
-			return nil, fmt.Errorf("Installing pytest timed out")
+			return nil, fmt.Errorf("Pytest installation timed out")
 		}
-		return nil, fmt.Errorf("Error installing pytest: %s", output)
+		return nil, fmt.Errorf("Could not install pytest: %w", err)
 	}
 
 	requirementsPath := filepath.Join(tempDir, "requirements.txt")
@@ -61,12 +61,12 @@ func (h PythonHandler) ExecuteTests(ctx context.Context, tempDir string) (*TestR
 		fmt.Println("Installing Python packages...")
 		cmd = exec.CommandContext(ctx, pipPath, "install", "-r", "requirements.txt", "--quiet")
 		cmd.Dir = tempDir
-		output, err = cmd.CombinedOutput()
+		_, err = cmd.CombinedOutput()
 		if err != nil {
 			if ctx.Err() == context.DeadlineExceeded {
-				return nil, fmt.Errorf("Installing packages timed out")
+				return nil, fmt.Errorf("Python dependency installation timed out")
 			}
-			return nil, fmt.Errorf("Error when installing Python packages: %s", output)
+			return nil, fmt.Errorf("Could not install Python dependencies: %w", err)
 		}
 	}
 
@@ -75,7 +75,7 @@ func (h PythonHandler) ExecuteTests(ctx context.Context, tempDir string) (*TestR
 	cmd.Dir = tempDir
 	cmd.Env = append(os.Environ(), "PYTHONPATH="+tempDir)
 
-	output, err = cmd.CombinedOutput()
+	_, err = cmd.CombinedOutput()
 	duration := time.Since(startTime)
 
 	if ctx.Err() == context.DeadlineExceeded {
@@ -89,11 +89,11 @@ func (h PythonHandler) ExecuteTests(ctx context.Context, tempDir string) (*TestR
 	reportPath := filepath.Join(tempDir, "report.json")
 	reportData, readErr := os.ReadFile(reportPath)
 	if readErr != nil {
-		return nil, fmt.Errorf("failed to read pytest report: %w\nOutput: %s", readErr, output)
+		return nil, fmt.Errorf("Could not read pytest report: %w", readErr)
 	}
 
 	if parseErr := h.parsePytestJSON(reportData, result); parseErr != nil {
-		return nil, fmt.Errorf("failed to parse test output: %w\n\n%s", parseErr, output)
+		return nil, fmt.Errorf("Could not parse pytest results: %w", parseErr)
 	}
 
 	if err != nil {
@@ -147,7 +147,7 @@ func (h PythonHandler) parsePytestJSON(data []byte, result *TestResult) error {
 func (h PythonHandler) PrepareEnvironment(challengePath string, runID string) (tempDir string, cleanup func(), err error) {
 	tempDir, err = os.MkdirTemp("", fmt.Sprintf("cochabench-%s-*", runID))
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to create temp directory: %w", err)
+		return "", nil, fmt.Errorf("Could not create temporary evaluation directory: %w", err)
 	}
 
 	cleanup = func() {
@@ -158,14 +158,14 @@ func (h PythonHandler) PrepareEnvironment(challengePath string, runID string) (t
 	testDst := filepath.Join(tempDir, "test")
 	if err := os.CopyFS(testDst, os.DirFS(testSrc)); err != nil {
 		cleanup()
-		return "", nil, fmt.Errorf("Failed to copy test files: %w", err)
+		return "", nil, fmt.Errorf("Could not copy test files: %w", err)
 	}
 
 	solutionSrc := filepath.Join(challengePath, "solutions", runID)
 	solutionDst := filepath.Join(tempDir, "src")
 	if err := os.CopyFS(solutionDst, os.DirFS(solutionSrc)); err != nil {
 		cleanup()
-		return "", nil, fmt.Errorf("Failed to copy solution files: %w", err)
+		return "", nil, fmt.Errorf("Could not copy solution files: %w", err)
 	}
 
 	requirementsSrc := filepath.Join(challengePath, "requirements.txt")
@@ -175,7 +175,7 @@ func (h PythonHandler) PrepareEnvironment(challengePath string, runID string) (t
 		if readErr == nil {
 			err = os.WriteFile(requirementsDst, data, 0644)
 			if err != nil {
-				return "", cleanup, fmt.Errorf("Failed to copy requirements.txt: %w", err)
+				return "", cleanup, fmt.Errorf("Could not copy requirements.txt: %w", err)
 			}
 		}
 	}

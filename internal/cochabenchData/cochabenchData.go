@@ -40,7 +40,7 @@ func LoadCochabenchStore(path string) (*Store, error) {
 func (store *Store) GetEntry(runID string) (*CochabenchEntry, bool, error) {
 	stmt, err := store.db.Prepare("SELECT runId, runName, runStatus, startTime, endTime, duration, testTimedOut, numTotalTests, numPassedTests, numFailedTests, qualityScore, maintainabilityScore, securityScore FROM runs WHERE runId = ?")
 	if err != nil {
-		return nil, false, fmt.Errorf("Failed to prepare SELECT statement: %v\n", err)
+		return nil, false, fmt.Errorf("Could not load run data: %w", err)
 	}
 	defer stmt.Close()
 	var entry CochabenchEntry
@@ -63,7 +63,7 @@ func (store *Store) GetEntry(runID string) (*CochabenchEntry, bool, error) {
 		return nil, false, nil
 	}
 	if err != nil {
-		return nil, false, fmt.Errorf("Failed to scan row: %v\n", err)
+		return nil, false, fmt.Errorf("Could not load run data: %w", err)
 	}
 	return &entry, true, nil
 }
@@ -88,7 +88,7 @@ func (store *Store) SaveEntry(entry *CochabenchEntry) error {
 		entry.RunID, entry.RunName, entry.RunStatus, entry.StartTime, entry.EndTime, entry.TestDuration, entry.TimedOut, entry.NumTotalTests, entry.NumPassedTests, entry.NumFailedTests, entry.QualityScore, entry.MaintainabilityScore, entry.SecurityScore,
 	)
 	if err != nil {
-		return fmt.Errorf("Failed to save entry %v: %v\n", entry, err)
+		return fmt.Errorf("Could not save run data: %w", err)
 	}
 	return nil
 }

@@ -23,18 +23,18 @@ func (h GoHandler) ExecuteTests(ctx context.Context, tempDir string) (*TestResul
 	fmt.Println("Downloading Go dependencies...")
 	downloadCmd := exec.CommandContext(ctx, "go", "mod", "download")
 	downloadCmd.Dir = tempDir
-	if output, err := downloadCmd.CombinedOutput(); err != nil {
-		fmt.Printf("Warning: go mod download failed: %s\n", output)
+	if _, err := downloadCmd.CombinedOutput(); err != nil {
+		fmt.Println("Warning: Could not prefetch Go dependencies")
 	}
 
 	fmt.Println("Running go mod tidy...")
 	tidyCmd := exec.CommandContext(ctx, "go", "mod", "tidy")
 	tidyCmd.Dir = tempDir
-	if output, err := tidyCmd.CombinedOutput(); err != nil {
+	if _, err := tidyCmd.CombinedOutput(); err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
-			return nil, fmt.Errorf("go mod tidy timed out")
+			return nil, fmt.Errorf("Go dependency resolution timed out")
 		}
-		return nil, fmt.Errorf("failed to run go mod tidy: %s", output)
+		return nil, fmt.Errorf("Could not resolve Go dependencies: %w", err)
 	}
 
 	fmt.Println("Executing Go Tests...")
@@ -54,7 +54,7 @@ func (h GoHandler) ExecuteTests(ctx context.Context, tempDir string) (*TestResul
 	}
 
 	if parseErr := h.parseGoTestJSON(output, result); parseErr != nil {
-		return nil, fmt.Errorf("failed to parse test output: %w\n\n%s", parseErr, output)
+		return nil, fmt.Errorf("Could not parse Go test results: %w", parseErr)
 	}
 
 	if err != nil {
@@ -131,7 +131,7 @@ func (h GoHandler) parseGoTestJSON(data []byte, result *TestResult) error {
 func (h GoHandler) PrepareEnvironment(challengePath string, runID string) (tempDir string, cleanup func(), err error) {
 	tempDir, err = os.MkdirTemp("", fmt.Sprintf("cochabench-%s-*", runID))
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to create temp directory: %w", err)
+		return "", nil, fmt.Errorf("Could not create temporary evaluation directory: %w", err)
 	}
 
 	cleanup = func() {
@@ -143,28 +143,28 @@ func (h GoHandler) PrepareEnvironment(challengePath string, runID string) (tempD
 	srcDst := filepath.Join(tempDir, "src")
 	if err := os.CopyFS(srcDst, os.DirFS(solutionSrc)); err != nil {
 		cleanup()
-		return "", nil, fmt.Errorf("Failed to copy solution files: %w", err)
+		return "", nil, fmt.Errorf("Could not copy solution files: %w", err)
 	}
 	goModData, err := os.ReadFile(filepath.Join(srcDst, "go.mod"))
 	if err != nil {
 		cleanup()
-		return "", nil, fmt.Errorf("Failed to copy go.mod from src/: %v", err)
+		return "", nil, fmt.Errorf("Solution is missing required file: go.mod")
 	}
 	err = os.WriteFile(filepath.Join(srcDst, "..", "go.mod"), goModData, 0644)
 	if err != nil {
 		cleanup()
-		return "", nil, fmt.Errorf("Failed to copy go.mod: %v", err)
+		return "", nil, fmt.Errorf("Could not prepare go.mod for evaluation: %w", err)
 	}
 
 	if removeErr := os.Remove(filepath.Join(srcDst, "go.mod")); removeErr != nil {
 		cleanup()
-		return "", nil, fmt.Errorf("Failed to remove src/go.mod: %w", removeErr)
+		return "", nil, fmt.Errorf("Could not finalize Go evaluation setup: %w", removeErr)
 	}
 
 	testSrc := filepath.Join(challengePath, "test")
 	if err := copyDirMerge(testSrc, srcDst); err != nil {
 		cleanup()
-		return "", nil, fmt.Errorf("Failed to copy test files: %w", err)
+		return "", nil, fmt.Errorf("Could not copy test files: %w", err)
 	}
 
 	goSumSrc := filepath.Join(srcDst, "go.sum")
@@ -173,16 +173,16 @@ func (h GoHandler) PrepareEnvironment(challengePath string, runID string) (tempD
 		data, readErr := os.ReadFile(goSumSrc)
 		if readErr != nil {
 			cleanup()
-			return "", nil, fmt.Errorf("Failed to read src/go.sum: %w", readErr)
+			return "", nil, fmt.Errorf("Could not read go.sum: %w", readErr)
 		}
 		if writeErr := os.WriteFile(goSumDst, data, 0644); writeErr != nil {
 			cleanup()
-			return "", nil, fmt.Errorf("Failed to write go.sum: %w", writeErr)
+			return "", nil, fmt.Errorf("Could not write go.sum: %w", writeErr)
 		}
 		// Delete src/go.sum after copying
 		if removeErr := os.Remove(goSumSrc); removeErr != nil {
 			cleanup()
-			return "", nil, fmt.Errorf("Failed to remove src/go.sum: %w", removeErr)
+			return "", nil, fmt.Errorf("Could not finalize Go dependency setup: %w", removeErr)
 		}
 	}
 

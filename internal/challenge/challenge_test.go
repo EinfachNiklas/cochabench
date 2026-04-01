@@ -200,8 +200,8 @@ func TestDownloadManifest(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !strings.Contains(err.Error(), "Bad manifest format") {
-			t.Errorf("error = %q, want substring %q", err.Error(), "Bad manifest format")
+		if !strings.Contains(err.Error(), "Challenge manifest is invalid") {
+			t.Errorf("error = %q, want substring %q", err.Error(), "Challenge manifest is invalid")
 		}
 	})
 
@@ -319,8 +319,8 @@ func TestDownloadChallenge(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !strings.Contains(err.Error(), "Cannot extract") {
-			t.Errorf("error = %q, want substring %q", err.Error(), "Cannot extract")
+		if !strings.Contains(err.Error(), "Downloaded challenge archive is invalid") {
+			t.Errorf("error = %q, want substring %q", err.Error(), "Downloaded challenge archive is invalid")
 		}
 	})
 
@@ -351,8 +351,8 @@ func TestDownloadChallenge(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !strings.Contains(err.Error(), "Asset missing.zip not found") {
-			t.Errorf("error = %q, want substring %q", err.Error(), "Asset missing.zip not found")
+		if !strings.Contains(err.Error(), "Release asset not found: missing.zip") {
+			t.Errorf("error = %q, want substring %q", err.Error(), "Release asset not found: missing.zip")
 		}
 	})
 }

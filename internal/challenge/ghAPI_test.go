@@ -38,7 +38,7 @@ func TestGithubGet(t *testing.T) {
 			token:        "ghp_testtoken123",
 			serverStatus: 401,
 			wantErr:      true,
-			errSubstr:    "Token provided",
+			errSubstr:    "GITHUB_TOKEN is invalid",
 		},
 		{
 			name:         "Success_WithoutToken",
@@ -80,14 +80,14 @@ func TestGithubGet(t *testing.T) {
 			token:        "",
 			serverStatus: 401,
 			wantErr:      true,
-			errSubstr:    "Github Token is required",
+			errSubstr:    "GITHUB_TOKEN is required",
 		},
 		{
 			name:         "Auth_401_BadToken",
 			token:        "ghp_invalid",
 			serverStatus: 401,
 			wantErr:      true,
-			errSubstr:    "Token provided",
+			errSubstr:    "GITHUB_TOKEN is invalid",
 		},
 	}
 
@@ -114,6 +114,9 @@ func TestGithubGet(t *testing.T) {
 				}
 				if !strings.Contains(err.Error(), tt.errSubstr) {
 					t.Errorf("error = %q, want substring %q", err.Error(), tt.errSubstr)
+				}
+				if strings.Contains(err.Error(), "\n") {
+					t.Errorf("error = %q, should not contain newlines", err.Error())
 				}
 				return
 			}
@@ -239,7 +242,7 @@ func TestFetchReleaseAssetURL(t *testing.T) {
 				Assets:  []ghAsset{{ID: 1, Name: "other.zip", URL: "https://example.com"}},
 			}),
 			wantErr:   true,
-			errSubstr: "Asset nonexistent.zip not found",
+			errSubstr: "Release asset not found: nonexistent.zip",
 		},
 		{
 			name:     "EmptyAssets",
@@ -250,7 +253,7 @@ func TestFetchReleaseAssetURL(t *testing.T) {
 				Assets:  []ghAsset{},
 			}),
 			wantErr:   true,
-			errSubstr: "Asset challenge.zip not found",
+			errSubstr: "Release asset not found: challenge.zip",
 		},
 		{
 			name:      "Non200Response",
@@ -258,7 +261,7 @@ func TestFetchReleaseAssetURL(t *testing.T) {
 			status:    404,
 			body:      "Not Found",
 			wantErr:   true,
-			errSubstr: "http response was",
+			errSubstr: "server returned",
 		},
 		{
 			name:      "InvalidJSON",
@@ -266,7 +269,7 @@ func TestFetchReleaseAssetURL(t *testing.T) {
 			status:    200,
 			body:      "{broken json",
 			wantErr:   true,
-			errSubstr: "Could not parse release JSON",
+			errSubstr: "Could not parse GitHub release metadata",
 		},
 	}
 
@@ -295,6 +298,9 @@ func TestFetchReleaseAssetURL(t *testing.T) {
 				}
 				if !strings.Contains(err.Error(), tt.errSubstr) {
 					t.Errorf("error = %q, want substring %q", err.Error(), tt.errSubstr)
+				}
+				if strings.Contains(err.Error(), "\n") {
+					t.Errorf("error = %q, should not contain newlines", err.Error())
 				}
 				return
 			}

@@ -22,24 +22,24 @@ func TestParseJestJSON(t *testing.T) {
 		errSubstr    string
 	}{
 		{
-			name: "AllPass",
-			input: `{"numTotalTests":3,"numPassedTests":3,"numFailedTests":0,"numPendingTests":0,"testResults":[]}`,
+			name:      "AllPass",
+			input:     `{"numTotalTests":3,"numPassedTests":3,"numFailedTests":0,"numPendingTests":0,"testResults":[]}`,
 			wantTotal: 3, wantPassed: 3,
 		},
 		{
-			name: "WithFailures",
-			input: `{"numTotalTests":2,"numPassedTests":1,"numFailedTests":1,"numPendingTests":0,"testResults":[{"assertionResults":[{"title":"should fail","status":"failed","failureMessages":["Expected true to be false"]}]}]}`,
+			name:      "WithFailures",
+			input:     `{"numTotalTests":2,"numPassedTests":1,"numFailedTests":1,"numPendingTests":0,"testResults":[{"assertionResults":[{"title":"should fail","status":"failed","failureMessages":["Expected true to be false"]}]}]}`,
 			wantTotal: 2, wantPassed: 1, wantFailed: 1, wantErrCount: 1,
 		},
 		{
 			name:      "NoMarker",
 			input:     `{"some":"other json"}`,
 			wantErr:   true,
-			errSubstr: "no Jest JSON found",
+			errSubstr: "Jest did not produce valid JSON test output",
 		},
 		{
-			name: "WithPending",
-			input: `{"numTotalTests":3,"numPassedTests":2,"numFailedTests":0,"numPendingTests":1,"testResults":[]}`,
+			name:      "WithPending",
+			input:     `{"numTotalTests":3,"numPassedTests":2,"numFailedTests":0,"numPendingTests":1,"testResults":[]}`,
 			wantTotal: 3, wantPassed: 2, wantSkipped: 1,
 		},
 		{
@@ -61,6 +61,9 @@ func TestParseJestJSON(t *testing.T) {
 				}
 				if tt.errSubstr != "" && !strings.Contains(err.Error(), tt.errSubstr) {
 					t.Errorf("error %q missing substring %q", err, tt.errSubstr)
+				}
+				if strings.Contains(err.Error(), "\n") {
+					t.Errorf("error %q should not contain newlines", err)
 				}
 				return
 			}

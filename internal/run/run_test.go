@@ -131,7 +131,7 @@ func TestInit(t *testing.T) {
 				return []string{"--name=x", dir}
 			},
 			wantErr:   true,
-			errSubstr: "does not exist",
+			errSubstr: "Directory does not exist",
 		},
 		{
 			name: "MissingSrc",
@@ -145,7 +145,7 @@ func TestInit(t *testing.T) {
 				return []string{"--name=x", dir}
 			},
 			wantErr:   true,
-			errSubstr: "Missing Directory 'src'",
+			errSubstr: "missing required folder: src",
 		},
 		{
 			name: "MissingTest",
@@ -159,7 +159,7 @@ func TestInit(t *testing.T) {
 				return []string{"--name=x", dir}
 			},
 			wantErr:   true,
-			errSubstr: "Missing Directory 'test'",
+			errSubstr: "missing required folder: test",
 		},
 		{
 			name: "MissingConfig",
@@ -173,7 +173,7 @@ func TestInit(t *testing.T) {
 				return []string{"--name=x", dir}
 			},
 			wantErr:   true,
-			errSubstr: "Missing challenge.config.json",
+			errSubstr: "missing required file: challenge.config.json",
 		},
 	}
 
@@ -226,7 +226,7 @@ func TestStart(t *testing.T) {
 		{"FromCanceled", "C", false, "", "R"},
 		{"AlreadyRunning", "R", true, "already running", ""},
 		{"AlreadyFinished", "F", true, "already finished", ""},
-		{"NotFound", "", true, "does not exist", ""},
+		{"NotFound", "", true, "Run not found", ""},
 	}
 
 	for _, tt := range tests {
@@ -280,7 +280,7 @@ func TestStop(t *testing.T) {
 		{"AlreadyFinished", "F", true, "finished", ""},
 		{"NotRunningInit", "I", true, "not running", ""},
 		{"NotRunningCanceled", "C", true, "not running", ""},
-		{"NotFound", "", true, "does not exist", ""},
+		{"NotFound", "", true, "Run not found", ""},
 	}
 
 	for _, tt := range tests {
@@ -334,7 +334,7 @@ func TestCancel(t *testing.T) {
 		{"AlreadyFinished", "F", true, "finished", ""},
 		{"NotRunningInit", "I", true, "not running", ""},
 		{"NotRunningCanceled", "C", true, "not running", ""},
-		{"NotFound", "", true, "does not exist", ""},
+		{"NotFound", "", true, "Run not found", ""},
 	}
 
 	for _, tt := range tests {
@@ -407,7 +407,7 @@ func TestList(t *testing.T) {
 				return filepath.Join(t.TempDir(), "nonexistent")
 			},
 			wantErr:   true,
-			errSubstr: "does not exist",
+			errSubstr: "Directory does not exist",
 		},
 		{
 			name: "MissingStructure",
@@ -415,7 +415,7 @@ func TestList(t *testing.T) {
 				return t.TempDir()
 			},
 			wantErr:   true,
-			errSubstr: "Missing Directory",
+			errSubstr: "missing required folder: src",
 		},
 	}
 

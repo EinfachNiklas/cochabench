@@ -64,7 +64,7 @@ func getLLM() (*llms.Model, error) {
 		}
 		llm, err = anthropic.New(opts...)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to setup Anthropic %s: %v\n", c.LLM_MODEL, err)
+			return nil, fmt.Errorf("Could not initialize Anthropic model %s: %w", c.LLM_MODEL, err)
 		}
 	case "openai":
 		opts := []openai.Option{
@@ -76,7 +76,7 @@ func getLLM() (*llms.Model, error) {
 		}
 		llm, err = openai.New(opts...)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to setup Openai %s: %v\n", c.LLM_MODEL, err)
+			return nil, fmt.Errorf("Could not initialize OpenAI model %s: %w", c.LLM_MODEL, err)
 		}
 	case "google":
 		opts := []googleai.Option{
@@ -88,10 +88,10 @@ func getLLM() (*llms.Model, error) {
 		}
 		llm, err = googleai.New(context.Background(), opts...)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to setup Openai %s: %v\n", c.LLM_MODEL, err)
+			return nil, fmt.Errorf("Could not initialize Google model %s: %w", c.LLM_MODEL, err)
 		}
 	default:
-		return nil, fmt.Errorf("LLM Provider %s is not supported", c.LLM_PROVIDER)
+		return nil, fmt.Errorf("Unsupported LLM provider: %s", c.LLM_PROVIDER)
 	}
 	return &llm, nil
 }
@@ -99,7 +99,7 @@ func getLLM() (*llms.Model, error) {
 func getEvalAgent() (*agents.OneShotZeroAgent, error) {
 	llm, err := getLLM()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to set up EvalAgent: %v\n", err)
+		return nil, fmt.Errorf("Could not set up AI evaluator: %w", err)
 	}
 
 	agentTools := []tools.Tool{
@@ -211,20 +211,20 @@ func NewEvaluator() *Evaluator {
 func runSingleEvaluation(ctx context.Context, cScores chan []float64, cErr chan error, run int, tmpDir string, diff string) {
 	agent, err := getEvalAgent()
 	if err != nil {
-		cErr <- fmt.Errorf("Error on run %d: %v\n", run, err)
+		cErr <- fmt.Errorf("AI evaluation run %d failed: %w", run, err)
 		return
 	}
 	executor := agents.NewExecutor(agent, agents.WithMaxIterations(20))
 
 	responses, err := executor.Call(ctx, map[string]any{"tmp_dir": tmpDir, "diff": diff}, chains.WithTemperature(0.0))
 	if err != nil {
-		cErr <- fmt.Errorf("Error on run %d: %v\n", run, err)
+		cErr <- fmt.Errorf("AI evaluation run %d failed: %w", run, err)
 		return
 	}
 
 	output, ok := responses["output"].(string)
 	if !ok {
-		cErr <- fmt.Errorf("Failed to extract output from agent response on run %d", run)
+		cErr <- fmt.Errorf("Could not extract AI evaluation output from run %d", run)
 		return
 	}
 
@@ -242,7 +242,7 @@ func runSingleEvaluation(ctx context.Context, cScores chan []float64, cErr chan 
 
 	var runResult EvaluatorResult
 	if err := json.Unmarshal([]byte(output), &runResult); err != nil {
-		cErr <- fmt.Errorf("Failed to parse JSON output on run %d: %w\nOutput was: %s", run, err, output)
+		cErr <- fmt.Errorf("Could not parse AI evaluation output for run %d: %w", run, err)
 		return
 	}
 
@@ -272,7 +272,7 @@ func (evaluator *Evaluator) Evaluate(tmpDir string, diff string, numEvalRuns int
 			securitySum += runScores[2]
 		case err := <-cErrors:
 			cancel()
-			return nil, fmt.Errorf("Error when running Evaluator: %v\n", err)
+			return nil, fmt.Errorf("Could not complete AI evaluation: %w", err)
 		}
 	}
 	avgResult := &EvaluatorResult{

@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -66,20 +65,20 @@ func downloadManifest() (*Manifest, string, error) {
 
 	resp, err := githubGet(manifestUrl, true)
 	if err != nil {
-		return nil, "", errors.Join(errors.New("Cannot download challenge manifest"), err)
+		return nil, "", fmt.Errorf("Could not download challenge manifest: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, "", fmt.Errorf("Error when downloading challenge manifest: HTTP %d %s", resp.StatusCode, resp.Status)
+		return nil, "", fmt.Errorf("Could not download challenge manifest: server returned %s", resp.Status)
 	}
 
 	d, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, "", errors.Join(errors.New("Error when reading challenge manifest"), err)
+		return nil, "", fmt.Errorf("Could not read challenge manifest: %w", err)
 	}
 	err = json.Unmarshal(d, &manifest)
 	if err != nil {
-		return nil, "", errors.Join(errors.New("Bad manifest format"), err)
+		return nil, "", fmt.Errorf("Challenge manifest is invalid: %w", err)
 	}
 	return &manifest, tag, nil
 
@@ -95,21 +94,21 @@ func downloadChallenge(filename string, path string) error {
 
 	resp, err := githubGet(challengeUrl, true)
 	if err != nil {
-		return errors.Join(errors.New("Cannot download challenge"), err)
+		return fmt.Errorf("Could not download challenge: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Error when downloading challenge: HTTP %d %s", resp.StatusCode, resp.Status)
+		return fmt.Errorf("Could not download challenge: server returned %s", resp.Status)
 	}
 
 	d, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return errors.Join(errors.New("Could not read http response"), err)
+		return fmt.Errorf("Could not read download response: %w", err)
 	}
 
 	zr, err := zip.NewReader(bytes.NewReader(d), resp.ContentLength)
 	if err != nil {
-		return errors.Join(errors.New("Cannot extract challenge"), err)
+		return fmt.Errorf("Downloaded challenge archive is invalid: %w", err)
 	}
 	for _, f := range zr.File {
 		targetPath := filepath.Join(path, f.Name)
@@ -125,13 +124,13 @@ func downloadChallenge(filename string, path string) error {
 
 		out, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
-			return errors.Join(errors.New("Could not create extracting-file: "+targetPath), err)
+			return fmt.Errorf("Could not create extracted file: %w", err)
 		}
 		defer out.Close()
 
 		_, err = io.Copy(out, fr)
 		if err != nil {
-			return errors.Join(errors.New("Error when writing file: "+targetPath), err)
+			return fmt.Errorf("Could not write extracted file: %w", err)
 		}
 	}
 	return nil
@@ -140,7 +139,7 @@ func downloadChallenge(filename string, path string) error {
 func List(ctx context.Context, cmd *cli.Command) error {
 	manifest, tag, err := downloadManifest()
 	if err != nil {
-		return errors.Join(errors.New("Could not download manifest"), err)
+		return fmt.Errorf("Could not fetch challenge list: %w", err)
 	}
 	fmt.Println(manifest.toString(tag))
 	return nil
@@ -153,21 +152,21 @@ func Get(ctx context.Context, cmd *cli.Command) error {
 	}
 	id := strings.TrimSpace(cmd.Args().Get(0))
 	if len(id) == 0 {
-		return errors.New("No challenge id provided")
+		return fmt.Errorf("Missing required argument: challenge ID")
 	}
 	manifest, _, err := downloadManifest()
 	if err != nil {
-		return err
+		return fmt.Errorf("Could not fetch challenge list: %w", err)
 	}
 	challenge, ok := manifest.Challenges[id]
 	if !ok {
-		return errors.New("The provided challenge id does not exist: " + id)
+		return fmt.Errorf("Unknown challenge ID: %s", id)
 	}
 
 	zipExtractPath := filepath.Join(dirPath)
 	err = downloadChallenge(challenge.Filename, zipExtractPath)
 	if err != nil {
-		return errors.Join(errors.New("Failed to download challenge"), err)
+		return err
 	}
 
 	fmt.Printf("Successfully downloaded challenge %s\n", id)
@@ -177,17 +176,17 @@ func Get(ctx context.Context, cmd *cli.Command) error {
 func GetAll(ctx context.Context, cmd *cli.Command) error {
 	dirPath, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("Could not download challenges. Could not get working directory: %v\n", err)
+		return fmt.Errorf("Could not determine current working directory: %w", err)
 	}
 
 	manifest, _, err := downloadManifest()
 	if err != nil {
-		return err
+		return fmt.Errorf("Could not fetch challenge list: %w", err)
 	}
 	for _, challenge := range manifest.Challenges {
 		err = downloadChallenge(challenge.Filename, dirPath)
 		if err != nil {
-			return fmt.Errorf("Downloads incomplete. Could not download challenge %s: %v\n", challenge, err)
+			return fmt.Errorf("Could not download all challenges; failed on %s: %w", challenge.Filename, err)
 		}
 	}
 	fmt.Println("Successfully downloaded all challenges")
