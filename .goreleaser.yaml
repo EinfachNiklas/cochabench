@@ -40,8 +40,24 @@ checksum:
 
 changelog:
   sort: asc
+  groups:
+    - title: Features
+      regexp: '^(?i)(feat(\(.+\))?:|add|added)\b'
+      order: 0
+    - title: Fixes
+      regexp: '^(?i)(fix(\(.+\))?:|change|changed|fix|fixed|force|improve|improved)\b'
+      order: 1
+    - title: Other
+      order: 999
   filters:
     exclude:
+      - "^Merge pull request"
+      - "^Merge branch"
+      - "^(?i)added goreleaser\\.yaml$"
+      - "^(?i)added release workflow$"
+      - "^(?i)added unit test$"
+      - "^chore:"
+      - "^ci:"
       - "^docs:"
       - "^test:"
 
