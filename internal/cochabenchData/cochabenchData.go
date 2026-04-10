@@ -15,7 +15,7 @@ type CochabenchEntry struct {
 	RunStatus            string
 	StartTime            time.Time
 	EndTime              time.Time
-	TestDuration         time.Duration
+	Duration             time.Duration
 	TimedOut             bool
 	NumTotalTests        int
 	NumPassedTests       int
@@ -40,7 +40,7 @@ func LoadCochabenchStore(path string) (*Store, error) {
 func (store *Store) GetEntry(runID string) (*CochabenchEntry, bool, error) {
 	stmt, err := store.db.Prepare("SELECT runId, runName, runStatus, startTime, endTime, duration, testTimedOut, numTotalTests, numPassedTests, numFailedTests, qualityScore, maintainabilityScore, securityScore FROM runs WHERE runId = ?")
 	if err != nil {
-		return nil, false, fmt.Errorf("Failed to prepare SELECT statement: %v\n", err)
+		return nil, false, fmt.Errorf("Could not load run data: %w", err)
 	}
 	defer stmt.Close()
 	var entry CochabenchEntry
@@ -50,7 +50,7 @@ func (store *Store) GetEntry(runID string) (*CochabenchEntry, bool, error) {
 		&entry.RunStatus,
 		&entry.StartTime,
 		&entry.EndTime,
-		&entry.TestDuration,
+		&entry.Duration,
 		&entry.TimedOut,
 		&entry.NumTotalTests,
 		&entry.NumPassedTests,
@@ -63,7 +63,7 @@ func (store *Store) GetEntry(runID string) (*CochabenchEntry, bool, error) {
 		return nil, false, nil
 	}
 	if err != nil {
-		return nil, false, fmt.Errorf("Failed to scan row: %v\n", err)
+		return nil, false, fmt.Errorf("Could not load run data: %w", err)
 	}
 	return &entry, true, nil
 }
@@ -85,10 +85,10 @@ func (store *Store) SaveEntry(entry *CochabenchEntry) error {
 			qualityScore = excluded.qualityScore,
 			maintainabilityScore = excluded.maintainabilityScore,
 			securityScore = excluded.securityScore`,
-		entry.RunID, entry.RunName, entry.RunStatus, entry.StartTime, entry.EndTime, entry.TestDuration, entry.TimedOut, entry.NumTotalTests, entry.NumPassedTests, entry.NumFailedTests, entry.QualityScore, entry.MaintainabilityScore, entry.SecurityScore,
+		entry.RunID, entry.RunName, entry.RunStatus, entry.StartTime, entry.EndTime, entry.Duration, entry.TimedOut, entry.NumTotalTests, entry.NumPassedTests, entry.NumFailedTests, entry.QualityScore, entry.MaintainabilityScore, entry.SecurityScore,
 	)
 	if err != nil {
-		return fmt.Errorf("Failed to save entry %v: %v\n", entry, err)
+		return fmt.Errorf("Could not save run data: %w", err)
 	}
 	return nil
 }
@@ -105,7 +105,7 @@ func (store *Store) ToString() string {
 
 	for rows.Next() {
 		var entry CochabenchEntry
-		if err := rows.Scan(&entry.RunID, &entry.RunName, &entry.RunStatus, &entry.StartTime, &entry.EndTime, &entry.TestDuration, &entry.TimedOut, &entry.NumTotalTests, &entry.NumPassedTests, &entry.NumFailedTests, &entry.QualityScore, &entry.MaintainabilityScore, &entry.SecurityScore); err != nil {
+		if err := rows.Scan(&entry.RunID, &entry.RunName, &entry.RunStatus, &entry.StartTime, &entry.EndTime, &entry.Duration, &entry.TimedOut, &entry.NumTotalTests, &entry.NumPassedTests, &entry.NumFailedTests, &entry.QualityScore, &entry.MaintainabilityScore, &entry.SecurityScore); err != nil {
 			log.Printf("Warning: failed to scan row: %v", err)
 			continue
 		}
@@ -116,7 +116,7 @@ func (store *Store) ToString() string {
 			entry.RunStatus,
 			tools.FmtTime(entry.StartTime),
 			tools.FmtTime(entry.EndTime),
-			entry.TestDuration.String(),
+			entry.Duration.String(),
 			fmt.Sprintf("%v", entry.TimedOut),
 			fmt.Sprintf("%d", entry.NumTotalTests),
 			fmt.Sprintf("%d", entry.NumPassedTests),

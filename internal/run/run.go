@@ -40,7 +40,7 @@ func Init(ctx context.Context, cmd *cli.Command) error {
 
 	store, err := cochabenchdata.LoadCochabenchStore(dirPath)
 	if err != nil {
-		return fmt.Errorf("Could not load CochabenchStore: %v\n", err)
+		return err
 	}
 	defer store.Close()
 
@@ -53,11 +53,11 @@ func Init(ctx context.Context, cmd *cli.Command) error {
 	err = os.MkdirAll(solutionPath, 0777)
 
 	if err != nil {
-		return errors.New("Could not create solution directory " + solutionPath)
+		return fmt.Errorf("Could not create solution directory: %w", err)
 	}
 	err = os.CopyFS(solutionPath, os.DirFS(filepath.Join(dirPath, "src")))
 	if err != nil {
-		return fmt.Errorf("Could not copy source files to solutions directory: %w", err)
+		return fmt.Errorf("Could not copy starter files into the run directory: %w", err)
 	}
 	if printIdOnly {
 		fmt.Println(entry.RunID)
@@ -76,7 +76,7 @@ func Start(ctx context.Context, cmd *cli.Command) error {
 
 	store, err := cochabenchdata.LoadCochabenchStore(dirPath)
 	if err != nil {
-		return fmt.Errorf("Could not load CochabenchStore: %v\n", err)
+		return err
 	}
 	defer store.Close()
 
@@ -85,13 +85,13 @@ func Start(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	if !found {
-		return fmt.Errorf("This run does not exist")
+		return errors.New("Run not found")
 	}
 	switch entry.RunStatus {
 	case "R":
-		return errors.New("Run " + entry.RunName + "[" + id + "] is already running\n")
+		return errors.New("Run is already running")
 	case "F":
-		return errors.New("Run " + entry.RunName + "[" + id + "] is already finished\n")
+		return errors.New("Run is already finished")
 	case "I", "C":
 		entry.StartTime = time.Now()
 		entry.RunStatus = "R"
@@ -114,7 +114,7 @@ func Stop(ctx context.Context, cmd *cli.Command) error {
 
 	store, err := cochabenchdata.LoadCochabenchStore(dirPath)
 	if err != nil {
-		return fmt.Errorf("Could not load CochabenchStore: %v\n", err)
+		return err
 	}
 	defer store.Close()
 
@@ -123,17 +123,18 @@ func Stop(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	if !found {
-		return fmt.Errorf("This run does not exist")
+		return errors.New("Run not found")
 	}
 
 	switch entry.RunStatus {
 	case "R":
 		entry.EndTime = time.Now()
 		entry.RunStatus = "F"
+		entry.Duration = entry.EndTime.Sub(entry.StartTime)
 	case "F":
-		return errors.New("Run " + entry.RunName + "[" + id + "] is already finished\n")
+		return errors.New("Run is already finished")
 	case "I", "C":
-		return errors.New("Run " + entry.RunName + "[" + id + "] is not running\n")
+		return errors.New("Run is not running")
 	}
 
 	err = store.SaveEntry(entry)
@@ -153,7 +154,7 @@ func Cancel(ctx context.Context, cmd *cli.Command) error {
 
 	store, err := cochabenchdata.LoadCochabenchStore(dirPath)
 	if err != nil {
-		return fmt.Errorf("Could not load CochabenchStore: %v\n", err)
+		return err
 	}
 	defer store.Close()
 
@@ -162,16 +163,16 @@ func Cancel(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	if !found {
-		return fmt.Errorf("This run does not exist")
+		return errors.New("Run not found")
 	}
 
 	switch entry.RunStatus {
 	case "R":
 		entry.RunStatus = "C"
 	case "F":
-		return errors.New("Run " + entry.RunName + "[" + id + "] is already finished\n")
+		return errors.New("Run is already finished")
 	case "I", "C":
-		return errors.New("Run " + entry.RunName + "[" + id + "] is not running\n")
+		return errors.New("Run is not running")
 	}
 
 	err = store.SaveEntry(entry)

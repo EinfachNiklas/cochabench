@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -100,10 +101,10 @@ func (tb *TableBuilder) Build() string {
 func ValidateDirPath(path string) error {
 	stat, err := os.Stat(path)
 	if err != nil {
-		return errors.New("This directory does not exist")
+		return errors.New("Directory does not exist")
 	}
 	if !stat.IsDir() {
-		return errors.New("The provided path is not a directory")
+		return errors.New("Path is not a directory")
 	}
 	return nil
 }
@@ -112,22 +113,22 @@ func ValidateDirStructure(path string) error {
 	// Check for src directory
 	stat, err := os.Stat(filepath.Join(path, "src"))
 	if err != nil || !stat.IsDir() {
-		return errors.New("Missing Directory 'src' in provided path: " + path)
+		return errors.New("Challenge directory is missing required folder: src")
 	}
 
 	// Check for test directory
 	stat, err = os.Stat(filepath.Join(path, "test"))
-	if os.IsNotExist(err) || !stat.IsDir() {
-		return errors.New("Missing Directory 'test' in provided path: " + path)
+	if err != nil || !stat.IsDir() {
+		return errors.New("Challenge directory is missing required folder: test")
 	}
 
 	// Check for config.json file
 	stat, err = os.Stat(filepath.Join(path, "challenge.config.json"))
 	if os.IsNotExist(err) {
-		return errors.New("Missing challenge.config.json file in provided path: " + path)
+		return errors.New("Challenge directory is missing required file: challenge.config.json")
 	}
 	if err != nil {
-		return errors.New("Error accessing challenge.config.json in provided path: " + path)
+		return errors.New("Could not access challenge.config.json")
 	}
 	return nil
 }
@@ -140,7 +141,7 @@ func LoadChallengeConfig(path string) (*ChallengeConfig, error) {
 	}
 	err = json.Unmarshal(data, &config)
 	if err != nil {
-		return nil, errors.New("Malformed configuration in " + path)
+		return nil, errors.New("challenge.config.json is invalid")
 	}
 	return &config, nil
 }
@@ -148,7 +149,7 @@ func LoadChallengeConfig(path string) (*ChallengeConfig, error) {
 func LoadEnv() (*Env, error) {
 	LLM_API_KEY := os.Getenv("LLM_API_KEY")
 	if len(LLM_API_KEY) == 0 {
-		return nil, fmt.Errorf("Required Environment Variable LLM_API_KEY is not set")
+		return nil, errors.New("LLM_API_KEY is not set")
 	}
 
 	return &Env{
@@ -160,4 +161,35 @@ func FmtTime(t time.Time) string {
 		return "-"
 	}
 	return t.Local().Format("2006-01-02 15:04:05")
+}
+
+func GetBuildVersion(externalVersion string) string {
+	info, ok := debug.ReadBuildInfo()
+	return resolveBuildVersion(externalVersion, info, ok)
+}
+
+func resolveBuildVersion(externalVersion string, info *debug.BuildInfo, ok bool) string {
+	if externalVersion != "" && externalVersion != "dev" {
+		return externalVersion
+	}
+
+	if !ok || info == nil {
+		return externalVersion
+	}
+
+	if info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+
+	for _, setting := range info.Settings {
+		if setting.Key != "vcs.revision" || setting.Value == "" {
+			continue
+		}
+		if len(setting.Value) > 7 {
+			return setting.Value[:7]
+		}
+		return setting.Value
+	}
+
+	return externalVersion
 }

@@ -14,13 +14,10 @@ import (
 	"github.com/EinfachNiklas/cochabench/internal/tools"
 )
 
-const TIMEOUT_DURATION = 5 * time.Minute
-const NUM_EVAL_RUNS_DEFAULT = 3
-
 func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	runID := cmd.String("runID")
 	if len(runID) == 0 {
-		return fmt.Errorf("No runID provided. Nothing to evaluate")
+		return fmt.Errorf("Missing required flag: --runID")
 	}
 	dirPath := cmd.String("path")
 	if len(dirPath) == 0 {
@@ -28,7 +25,16 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 	}
 	debugMode := cmd.Bool("debug")
 	noAIEval := cmd.Bool("no-ai-eval")
+
 	numEvalRuns := cmd.Int("number-of-agents")
+	if numEvalRuns < 1 {
+		numEvalRuns = 1
+	}
+
+	timeout := cmd.Duration("timeout")
+	if timeout < 1*time.Second {
+		timeout = 5 * time.Minute
+	}
 
 	err := tools.ValidateDirPath(dirPath)
 	if err != nil {
@@ -45,20 +51,20 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 
 	store, err := cochabenchdata.LoadCochabenchStore(dirPath)
 	if err != nil {
-		return fmt.Errorf("Could not load CochabenchStore: %v\n", err)
+		return err
 	}
 	defer store.Close()
 
 	runData, found, err := store.GetEntry(runID)
 	if err != nil {
-		return fmt.Errorf("Could not load Run Data: %w", err)
+		return err
 	}
 	if !found {
-		return fmt.Errorf("This run does not exist")
+		return fmt.Errorf("Run not found")
 	}
 
 	if runData.RunStatus != "F" {
-		return fmt.Errorf("Run is not finished. Nothing to evaluate")
+		return fmt.Errorf("Run must be finished before evaluation")
 	}
 
 	handler, err := createHandler(challengeConfig.ChallengeType)
@@ -68,7 +74,7 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 
 	tempDir, cleanup, err := handler.PrepareEnvironment(dirPath, runID)
 	if err != nil {
-		return fmt.Errorf("Failed to prepare temporary environment for evaluation: %w", err)
+		return fmt.Errorf("Could not prepare evaluation environment: %w", err)
 	}
 	if !debugMode {
 		defer cleanup()
@@ -76,9 +82,9 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 		log.Printf("Location of tmpDir for eval: %s\n", tempDir)
 	}
 
-	testResult, err, timedOut := executeTests(handler, tempDir)
+	testResult, err, timedOut := executeTests(handler, tempDir, timeout)
 	if err != nil {
-		return fmt.Errorf("Failed to execute tests: %w", err)
+		return err
 	}
 
 	if noAIEval {
@@ -97,10 +103,6 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 
 		evaluator := agent.NewEvaluator()
 
-		if numEvalRuns < 1 {
-			numEvalRuns = NUM_EVAL_RUNS_DEFAULT
-		}
-
 		aiEvaluation, err := evaluator.Evaluate(tempDir, diff, numEvalRuns)
 		if err != nil {
 			return err
@@ -110,7 +112,6 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 		runData.SecurityScore = aiEvaluation.Security
 	}
 
-	runData.TestDuration = testResult.Duration
 	runData.TimedOut = timedOut
 	runData.NumTotalTests = testResult.TotalTests
 	runData.NumPassedTests = testResult.PassedTests
@@ -135,12 +136,12 @@ func createHandler(challengeType string) (LanguageHandler, error) {
 	case "go", "golang":
 		return GoHandler{}, nil
 	default:
-		return nil, fmt.Errorf("unsupported challenge type: %s", challengeType)
+		return nil, fmt.Errorf("Unsupported challenge type: %s", challengeType)
 	}
 }
 
-func executeTests(handler LanguageHandler, tempDir string) (result *TestResult, err error, timedOut bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), TIMEOUT_DURATION)
+func executeTests(handler LanguageHandler, tempDir string, timeout time.Duration) (result *TestResult, err error, timedOut bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	resultChan := make(chan *TestResult)
@@ -159,7 +160,7 @@ func executeTests(handler LanguageHandler, tempDir string) (result *TestResult, 
 	case result = <-resultChan:
 		return result, nil, false
 	case err = <-errorChan:
-		return nil, fmt.Errorf("Failed to execute tests: %w", err), false
+		return nil, fmt.Errorf("Test execution failed: %w", err), false
 	case <-ctx.Done():
 		return nil, fmt.Errorf("Test execution timed out"), true
 	}
@@ -173,7 +174,7 @@ func printEvaluationAsTable(entry *cochabenchdata.CochabenchEntry) {
 		entry.RunStatus,
 		tools.FmtTime(entry.StartTime),
 		tools.FmtTime(entry.EndTime),
-		entry.TestDuration.String(),
+		entry.Duration.String(),
 		fmt.Sprintf("%v", entry.TimedOut),
 		fmt.Sprintf("%d", entry.NumTotalTests),
 		fmt.Sprintf("%d", entry.NumPassedTests),

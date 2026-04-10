@@ -3,6 +3,7 @@ package tools
 import (
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
@@ -98,7 +99,7 @@ func TestValidateDirPath(t *testing.T) {
 				return filepath.Join(t.TempDir(), "nope")
 			},
 			wantErr:   true,
-			errSubstr: "does not exist",
+			errSubstr: "Directory does not exist",
 		},
 		{
 			name: "IsFile",
@@ -156,15 +157,15 @@ func setupChallengeDir(t *testing.T, createSrc, createTest, createConfig bool) s
 
 func TestValidateDirStructure(t *testing.T) {
 	tests := []struct {
-		name         string
+		name              string
 		src, test, config bool
-		wantErr      bool
-		errSubstr    string
+		wantErr           bool
+		errSubstr         string
 	}{
 		{"Valid", true, true, true, false, ""},
-		{"MissingSrc", false, true, true, true, "Missing Directory 'src'"},
-		{"MissingTest", true, false, true, true, "Missing Directory 'test'"},
-		{"MissingConfig", true, true, false, true, "Missing challenge.config.json"},
+		{"MissingSrc", false, true, true, true, "missing required folder: src"},
+		{"MissingTest", true, false, true, true, "missing required folder: test"},
+		{"MissingConfig", true, true, false, true, "missing required file: challenge.config.json"},
 	}
 
 	for _, tt := range tests {
@@ -187,14 +188,14 @@ func TestValidateDirStructure(t *testing.T) {
 
 func TestLoadChallengeConfig(t *testing.T) {
 	tests := []struct {
-		name          string
-		content       string
-		writeFile     bool
-		wantErr       bool
-		errSubstr     string
-		wantName      string
-		wantID        string
-		wantType      string
+		name      string
+		content   string
+		writeFile bool
+		wantErr   bool
+		errSubstr string
+		wantName  string
+		wantID    string
+		wantType  string
 	}{
 		{
 			name:      "ValidJSON",
@@ -209,7 +210,7 @@ func TestLoadChallengeConfig(t *testing.T) {
 			content:   `{bad json`,
 			writeFile: true,
 			wantErr:   true,
-			errSubstr: "Malformed",
+			errSubstr: "challenge.config.json is invalid",
 		},
 		{
 			name:      "FileNotFound",
@@ -304,6 +305,101 @@ func TestFmtTime(t *testing.T) {
 			got := FmtTime(tt.t)
 			if got != tt.want {
 				t2.Errorf("FmtTime() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetBuildVersion(t *testing.T) {
+	t.Run("UsesExternalVersionWhenProvided", func(t *testing.T) {
+		got := GetBuildVersion("v1.2.3")
+		if got != "v1.2.3" {
+			t.Fatalf("GetBuildVersion() = %q, want %q", got, "v1.2.3")
+		}
+	})
+
+	tests := []struct {
+		name            string
+		externalVersion string
+		info            *debug.BuildInfo
+		ok              bool
+		want            string
+	}{
+		{
+			name:            "ReturnsExternalVersionWithoutReadingBuildInfo",
+			externalVersion: "v1.2.3",
+			info: &debug.BuildInfo{
+				Main: debug.Module{
+					Version: "v9.9.9",
+				},
+			},
+			ok:   true,
+			want: "v1.2.3",
+		},
+		{
+			name:            "UsesMainVersionFromBuildInfo",
+			externalVersion: "dev",
+			info: &debug.BuildInfo{
+				Main: debug.Module{
+					Version: "v0.1.3+dirty",
+				},
+			},
+			ok:   true,
+			want: "v0.1.3+dirty",
+		},
+		{
+			name:            "FallsBackToShortVCSRevision",
+			externalVersion: "dev",
+			info: &debug.BuildInfo{
+				Main: debug.Module{
+					Version: "(devel)",
+				},
+				Settings: []debug.BuildSetting{
+					{Key: "vcs.revision", Value: "abcdef1234567890"},
+				},
+			},
+			ok:   true,
+			want: "abcdef1",
+		},
+		{
+			name:            "ReturnsShortRevisionWithoutTruncationWhenAlreadyShort",
+			externalVersion: "dev",
+			info: &debug.BuildInfo{
+				Main: debug.Module{
+					Version: "(devel)",
+				},
+				Settings: []debug.BuildSetting{
+					{Key: "vcs.revision", Value: "abc123"},
+				},
+			},
+			ok:   true,
+			want: "abc123",
+		},
+		{
+			name:            "FallsBackToExternalVersionWithoutBuildInfo",
+			externalVersion: "dev",
+			info:            nil,
+			ok:              false,
+			want:            "dev",
+		},
+		{
+			name:            "FallsBackToExternalVersionWhenBuildInfoHasNoUsefulVersion",
+			externalVersion: "dev",
+			info: &debug.BuildInfo{
+				Main: debug.Module{
+					Version: "(devel)",
+				},
+			},
+			ok:   true,
+			want: "dev",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolveBuildVersion(tt.externalVersion, tt.info, tt.ok)
+			if got != tt.want {
+				t.Fatalf("resolveBuildVersion() = %q, want %q", got, tt.want)
 			}
 		})
 	}

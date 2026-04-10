@@ -4,20 +4,25 @@ import (
 	"context"
 	"log"
 	"os"
+	"time"
 
 	challenges "github.com/EinfachNiklas/cochabench/internal/challenge"
 	"github.com/EinfachNiklas/cochabench/internal/config"
 	"github.com/EinfachNiklas/cochabench/internal/eval"
 	"github.com/EinfachNiklas/cochabench/internal/run"
+	"github.com/EinfachNiklas/cochabench/internal/tools"
 	"github.com/google/uuid"
 
 	"github.com/urfave/cli/v3"
 )
 
+var version = "dev"
+
 func main() {
 	cmd := &cli.Command{
-		Name:  "cochabench",
-		Usage: "Handle the coding challenges",
+		Name:    "cochabench",
+		Usage:   "Handle the coding challenges",
+		Version: tools.GetBuildVersion(version),
 		Commands: []*cli.Command{
 			{
 				Name:    "run",
@@ -94,7 +99,14 @@ func main() {
 							&cli.IntFlag{
 								Name:    "number-of-agents",
 								Aliases: []string{"n"},
+								Value:   3,
 								Usage:   "Number of AI evaluation agents to run - Default = 3",
+							},
+							&cli.DurationFlag{
+								Name:    "timeout",
+								Aliases: []string{"t"},
+								Value:   5 * time.Minute,
+								Usage:   "Time until an evaluation times out - Defaul = 5m",
 							},
 						},
 					},

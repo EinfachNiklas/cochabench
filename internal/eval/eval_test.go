@@ -1,19 +1,22 @@
 package eval
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCreateHandler(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       string
-		wantType    string
-		wantErr     bool
-		errSubstr   string
+		name      string
+		input     string
+		wantType  string
+		wantErr   bool
+		errSubstr string
 	}{
 		{"Go", "go", "GoHandler", false, ""},
 		{"Golang", "golang", "GoHandler", false, ""},
@@ -21,7 +24,7 @@ func TestCreateHandler(t *testing.T) {
 		{"JS", "js", "JavascriptHandler", false, ""},
 		{"Python", "python", "PythonHandler", false, ""},
 		{"Py", "py", "PythonHandler", false, ""},
-		{"Unknown", "unknown", "", true, "unsupported"},
+		{"Unknown", "unknown", "", true, "Unsupported challenge type"},
 	}
 
 	for _, tt := range tests {
@@ -47,6 +50,43 @@ func TestCreateHandler(t *testing.T) {
 	}
 }
 
+type stubLanguageHandler struct {
+	executeTests func(context.Context, string) (*TestResult, error)
+}
+
+func (h stubLanguageHandler) PrepareEnvironment(challengePath string, runID string) (string, func(), error) {
+	return "", func() {}, nil
+}
+
+func (h stubLanguageHandler) ExecuteTests(ctx context.Context, tempDir string) (*TestResult, error) {
+	return h.executeTests(ctx, tempDir)
+}
+
+func TestExecuteTests_WrapsHandlerErrorOnce(t *testing.T) {
+	handler := stubLanguageHandler{
+		executeTests: func(ctx context.Context, tempDir string) (*TestResult, error) {
+			return nil, errors.New("boom")
+		},
+	}
+
+	_, err, timedOut := executeTests(handler, t.TempDir(), 5*time.Minute)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if timedOut {
+		t.Fatal("timedOut = true, want false")
+	}
+	if !strings.Contains(err.Error(), "Test execution failed: boom") {
+		t.Fatalf("error = %q, want wrapped handler error", err)
+	}
+	if strings.Count(err.Error(), "Test execution failed") != 1 {
+		t.Fatalf("error = %q, expected single wrap", err)
+	}
+	if strings.Contains(err.Error(), "\n") {
+		t.Fatalf("error = %q, should not contain newlines", err)
+	}
+}
+
 func typeString(h LanguageHandler) string {
 	switch h.(type) {
 	case GoHandler:
@@ -62,9 +102,9 @@ func typeString(h LanguageHandler) string {
 
 func TestIsBinary(t *testing.T) {
 	tests := []struct {
-		name string
+		name  string
 		input string
-		want bool
+		want  bool
 	}{
 		{"NormalText", "hello world\nfoo bar", false},
 		{"WithNullByte", "hello\x00world", true},
