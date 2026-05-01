@@ -187,6 +187,7 @@ cochabench run eval --runID <run-id> [options]
 | `--debug` | `-d` | false | Keep temporary files after evaluation |
 | `--no-ai-eval` | `--no-ai` | false | Skip AI evaluation |
 | `--number-of-agents` | `-n` | 3 | Number of AI evaluation runs |
+| `--ai-eval-iterations` | `--iterations` | 20 | Maximum iterations the AI evaluation agent can use |
 | `--timeout` | `-t` | 5m | Test execution timeout |
 
 **Requirements**:
@@ -205,6 +206,9 @@ cochabench run eval --runID abc123 --debug --timeout 10m
 
 # Single AI evaluation run
 cochabench run eval --runID abc123 -n 1
+
+# Increase Number of AI evaluation iterations
+cochabench run eval --runID abc123 --ai-eval-iterations 40
 ```
 
 ---
