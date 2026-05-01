@@ -36,6 +36,8 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 		timeout = 5 * time.Minute
 	}
 
+	aiEvalIterations := cmd.Int("ai-eval-iterations")
+
 	err := tools.ValidateDirPath(dirPath)
 	if err != nil {
 		return err
@@ -101,7 +103,7 @@ func Evaluate(ctx context.Context, cmd *cli.Command) error {
 			diff = ""
 		}
 
-		evaluator := agent.NewEvaluator()
+		evaluator := agent.NewEvaluator(aiEvalIterations)
 
 		aiEvaluation, err := evaluator.Evaluate(tempDir, diff, numEvalRuns)
 		if err != nil {

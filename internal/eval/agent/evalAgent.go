@@ -20,7 +20,9 @@ import (
 	"github.com/tmc/langchaingo/tools"
 )
 
-type Evaluator struct{}
+type Evaluator struct {
+	iterations int
+}
 
 type EvaluatorResult struct {
 	Quality         float64 `json:"quality"`
@@ -210,8 +212,8 @@ Begin!
 	return agent, nil
 }
 
-func NewEvaluator() *Evaluator {
-	return &Evaluator{}
+func NewEvaluator(iterations int) *Evaluator {
+	return &Evaluator{iterations: iterations}
 }
 
 func normalizeAIEvaluationError(err error) error {
