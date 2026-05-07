@@ -1,6 +1,30 @@
 # Data Management
 
-CochaBench allows you to merge run data from multiple challenges into a single database for centralized analysis.
+CochaBench uses SQLite databases to store run data for challenges and merged datasets.
+
+---
+## Local Challenge Database
+
+Each challenge directory contains a `cochabench.db` SQLite database that stores run data for that specific challenge.
+
+### Database Schema
+
+#### `runs` Table
+| Column | Type | Description |
+|--------|------|-------------|
+| `runId` | CHAR(36) | Unique run identifier (primary key) |
+| `runName` | VARCHAR(256) | Human-readable name of the run |
+| `runStatus` | CHAR(1) | Status code |
+| `startTime` | TIMESTAMP | When the run was started |
+| `endTime` | TIMESTAMP | When the run was stopped |
+| `duration` | INTEGER | Duration in nanoseconds |
+| `testTimedOut` | BOOLEAN | Whether the run timed out |
+| `numTotalTests` | INTEGER | Total tests executed |
+| `numPassedTests` | INTEGER | Tests passed |
+| `numFailedTests` | INTEGER | Tests failed |
+| `qualityScore` | DECIMAL(15,2) | AI-evaluated quality score (1-10) |
+| `maintainabilityScore` | DECIMAL(15,2) | AI-evaluated maintainability score (1-10) |
+| `securityScore` | DECIMAL(15,2) | AI-evaluated security score (1-10) |
 
 ---
 ## Merged Database Overview
