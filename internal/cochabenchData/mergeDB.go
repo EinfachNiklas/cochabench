@@ -109,7 +109,7 @@ func getAllRuns(path string) ([]*MergedCochabenchEntry, []string, error) {
 		}
 	}
 
-	return cochabenchEntries, nil, nil
+	return cochabenchEntries, challenges, nil
 }
 
 func (db *MergedDB) merge() error {
@@ -118,9 +118,7 @@ func (db *MergedDB) merge() error {
 		return err
 	}
 
-	stmt, err := db.db.Prepare(`INSERT INTO challenges(challengeId) 
-								VALUES(?)
-								ON CONFLICT(challengeId) ABORT`)
+	stmt, err := db.db.Prepare(`INSERT OR IGNORE INTO challenges(challengeId) VALUES(?)`)
 	if err != nil {
 		return fmt.Errorf("Could not insert challenge into db: %v", err)
 	}
@@ -137,7 +135,20 @@ func (db *MergedDB) merge() error {
 	stmt, err = db.db.Prepare(`
 		INSERT INTO runs(runId, challengeId, runName, runStatus, startTime, endTime, duration, testTimedOut, numTotalTests, numPassedTests, numFailedTests, qualityScore, maintainabilityScore, securityScore)
 		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		ON CONFLICT(runId) REPLACE
+		ON CONFLICT(runId) DO UPDATE SET
+			challengeId = excluded.challengeId,
+			runName = excluded.runName,
+			runStatus = excluded.runStatus,
+			startTime = excluded.startTime,
+			endTime = excluded.endTime,
+			duration = excluded.duration,
+			testTimedOut = excluded.testTimedOut,
+			numTotalTests = excluded.numTotalTests,
+			numPassedTests = excluded.numPassedTests,
+			numFailedTests = excluded.numFailedTests,
+			qualityScore = excluded.qualityScore,
+			maintainabilityScore = excluded.maintainabilityScore,
+			securityScore = excluded.securityScore
 	`)
 	if err != nil {
 		return fmt.Errorf("Could not insert merged runs into table: %v", err)
