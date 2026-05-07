@@ -213,6 +213,18 @@ cochabench run eval --runID abc123 --ai-eval-iterations 40
 
 ---
 
+
+## Run Status Codes
+
+| Code | Status | Description |
+|------|--------|-------------|
+| I | Initialized | Run created, not started |
+| R | Running | Timer active |
+| C | Canceled | Run was canceled |
+| F | Finished | Run completed, ready for evaluation |
+
+---
+
 ## Config Commands
 
 Manage CochaBench configuration.
@@ -295,14 +307,39 @@ cochabench config set LLM_MODEL gpt-4
 
 ---
 
-## Run Status Codes
+## Data Commands
 
-| Code | Status | Description |
-|------|--------|-------------|
-| I | Initialized | Run created, not started |
-| R | Running | Timer active |
-| C | Canceled | Run was canceled |
-| F | Finished | Run completed, ready for evaluation |
+Manage combined run data across multiple challenges.
+
+### `data merge`
+
+Combine the data of multiple challenges into one database. Expects the challenges to be directories inside the provided path.
+
+```bash
+cochabench data merge --path <directory>
+cochabench d m --path ./challenges  # Short form
+```
+
+**Flags:**
+
+| Flag | Alias | Default | Description |
+|------|-------|---------|-------------|
+| `--path` | `-p` | `./` | Path to the directory containing challenge subdirectories |
+
+**Behavior:**
+- Scans `<directory>` for subdirectories containing `challenge.config.json`.
+- Creates a `cochabenchMerged.db` SQLite database in `<directory>`.
+- Aggregates all runs from all challenges into the merged database.
+- Handles duplicate runs (same `runId`) by updating existing entries.
+
+**Example:**
+```bash
+# Merge all challenges in the current directory
+cochabench data merge
+
+# Merge challenges from a specific directory
+cochabench data merge --path ~/projects/cochabench-runs
+```
 
 ---
 

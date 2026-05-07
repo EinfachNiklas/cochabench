@@ -44,6 +44,7 @@
 - [Quick Start](quickstart.md) - Complete your first challenge
 - [CLI Reference](cli-reference.md) - Full command documentation
 - [Configuration](configuration.md) - Customize your setup
+- [Data Management](data-management.md) - Merge and analyze runs across challenges
 - [Evaluation](evaluation.md) - Understanding metrics and AI assessment
 
 ---

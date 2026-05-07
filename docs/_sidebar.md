@@ -6,3 +6,4 @@
 - **User Guide**
   - [CLI Reference](cli-reference.md)
   - [Configuration](configuration.md)
+  - [Data Management](data-management.md)
