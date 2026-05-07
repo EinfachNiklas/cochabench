@@ -53,7 +53,7 @@ func setupMergedDB(dirPath string) (*sql.DB, error) {
 
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS runs(
 			runId CHAR(36) PRIMARY KEY,
-			challengeId CHAR(36) NOT NULL,
+			challengeId CHAR(256) NOT NULL,
 			runName VARCHAR(256) NOT NULL,
 			runStatus CHAR(1) NOT NULL,
 			startTime TIMESTAMP,
