@@ -44,7 +44,7 @@ func setupMergedDB(dirPath string) (*sql.DB, error) {
 
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS challenges(
-			challengeId CHAR(36) PRIMARY KEY
+			challengeId CHAR(256) PRIMARY KEY
 		)	
 	`)
 	if err != nil {

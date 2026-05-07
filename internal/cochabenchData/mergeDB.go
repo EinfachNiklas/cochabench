@@ -19,7 +19,7 @@ type MergedDB struct {
 
 type MergedCochabenchEntry struct {
 	RunName              string
-	challenge            string
+	Challenge            string
 	RunID                string
 	RunStatus            string
 	StartTime            time.Time
@@ -71,7 +71,7 @@ func getAllRuns(path string) ([]*MergedCochabenchEntry, []string, error) {
 
 		challengeConf, err := tools.LoadChallengeConfig(filepath.Join(path, entry.Name(), "challenge.config.json"))
 		if err != nil {
-			return nil, nil, fmt.Errorf("Could not open challegne config for %s: %v", entry.Name(), err)
+			return nil, nil, fmt.Errorf("Could not open challenge config for %s: %v", entry.Name(), err)
 		}
 
 		challenges = append(challenges, challengeConf.ChallengeID)
@@ -92,7 +92,7 @@ func getAllRuns(path string) ([]*MergedCochabenchEntry, []string, error) {
 		for _, row := range rows {
 			cochabenchEntries = append(cochabenchEntries, &MergedCochabenchEntry{
 				RunName:              row.RunName,
-				challenge:            challengeConf.ChallengeID,
+				Challenge:            challengeConf.ChallengeID,
 				RunID:                row.RunID,
 				RunStatus:            row.RunStatus,
 				StartTime:            row.StartTime,
@@ -158,7 +158,7 @@ func (db *MergedDB) merge() error {
 	for _, run := range runs {
 		_, err := stmt.Exec(
 			run.RunID,
-			run.challenge,
+			run.Challenge,
 			run.RunName,
 			run.RunStatus,
 			run.StartTime,
