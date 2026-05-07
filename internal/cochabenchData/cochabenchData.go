@@ -68,6 +68,45 @@ func (store *Store) GetEntry(runID string) (*CochabenchEntry, bool, error) {
 	return &entry, true, nil
 }
 
+func (store *Store) GetAllEntries() ([]*CochabenchEntry, bool, error) {
+	stmt, err := store.db.Prepare("SELECT runId, runName, runStatus, startTime, endTime, duration, testTimedOut, numTotalTests, numPassedTests, numFailedTests, qualityScore, maintainabilityScore, securityScore FROM runs")
+	if err != nil {
+		return nil, false, fmt.Errorf("Could not load run data: %w", err)
+	}
+	defer stmt.Close()
+	var entries []*CochabenchEntry
+	rows, err := stmt.Query()
+	if err == sql.ErrNoRows {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("Could not load run data: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var entry CochabenchEntry
+
+		rows.Scan(
+			&entry.RunID,
+			&entry.RunName,
+			&entry.RunStatus,
+			&entry.StartTime,
+			&entry.EndTime,
+			&entry.Duration,
+			&entry.TimedOut,
+			&entry.NumTotalTests,
+			&entry.NumPassedTests,
+			&entry.NumFailedTests,
+			&entry.QualityScore,
+			&entry.MaintainabilityScore,
+			&entry.SecurityScore,
+		)
+		entries = append(entries, &entry)
+	}
+	return entries, true, nil
+}
+
 func (store *Store) SaveEntry(entry *CochabenchEntry) error {
 	_, err := store.db.Exec(`
 		INSERT INTO runs(runId, runName, runStatus, startTime, endTime, duration, testTimedOut, numTotalTests, numPassedTests, numFailedTests, qualityScore, maintainabilityScore, securityScore)

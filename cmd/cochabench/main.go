@@ -7,6 +7,7 @@ import (
 	"time"
 
 	challenges "github.com/EinfachNiklas/cochabench/internal/challenge"
+	cochabenchdata "github.com/EinfachNiklas/cochabench/internal/cochabenchData"
 	"github.com/EinfachNiklas/cochabench/internal/config"
 	"github.com/EinfachNiklas/cochabench/internal/eval"
 	"github.com/EinfachNiklas/cochabench/internal/run"
@@ -187,6 +188,27 @@ func main() {
 						Name:   "set",
 						Usage:  "Set a config value. Usage: config set <key> <value>",
 						Action: config.Set,
+					},
+				},
+			},
+			{
+				Name:    "data",
+				Usage:   "Handle combined run data",
+				Aliases: []string{"d"},
+				Commands: []*cli.Command{
+					{
+						Name:    "merge",
+						Usage:   "Combine the data of multiple challenges into on database. Expects the challenges to be directories inside the provided path.",
+						Aliases: []string{"m"},
+						Action:  cochabenchdata.MergeDB,
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:    "path",
+								Usage:   "Provide the path the merge is executed from",
+								Aliases: []string{"p"},
+								Value:   "./",
+							},
+						},
 					},
 				},
 			},

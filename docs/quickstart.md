@@ -195,4 +195,5 @@ cochabench run eval --runID <run-id>      # Evaluate
 
 - [CLI Reference](cli-reference.md) - Full command documentation
 - [Configuration](configuration.md) - Customize AI provider and settings
+- [Data Management](data-management.md) - Merge and analyze runs across challenges
 - [Evaluation](evaluation.md) - Deep dive into scoring metrics
